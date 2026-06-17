@@ -62,7 +62,17 @@ git push -u origin main
 
 ### Vercel
 
-O projeto inclui `vercel.json` e `api/index.php` para rodar com PHP no Vercel. Depois de conectar o repositorio ao Vercel, configure estas variaveis de ambiente:
+O projeto inclui `vercel.json`, `api/index.php` e um workflow em `.github/workflows/vercel.yml` para publicar automaticamente no Vercel quando houver push na branch `main`.
+
+No GitHub, configure estes segredos em `Settings > Secrets and variables > Actions`:
+
+```text
+VERCEL_TOKEN
+VERCEL_ORG_ID
+VERCEL_PROJECT_ID
+```
+
+No Vercel, configure estas variaveis de ambiente do projeto:
 
 ```text
 EBD_JWT_SECRET=um-segredo-longo-e-seguro
