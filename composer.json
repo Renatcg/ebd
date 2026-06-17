@@ -1,0 +1,12 @@
+{
+    "name": "ebd/sistema-ebd",
+    "description": "Sistema para gestao da Escola Biblica Dominical.",
+    "type": "project",
+    "require": {
+        "php": "^8.2"
+    },
+    "scripts": {
+        "start": "php -S localhost:8000 -t public public/router.php",
+        "init-db": "php scripts/init-db.php"
+    }
+}

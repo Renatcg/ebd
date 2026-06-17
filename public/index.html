@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sistema EBD</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+    <main id="loginView" class="login-shell">
+        <div class="login-stage" aria-hidden="true">
+            <span class="login-cross"></span>
+            <span class="login-book"></span>
+        </div>
+        <section class="login-panel">
+            <div class="brand-lockup login-brand">
+                <span class="brand-mark" aria-hidden="true">✚</span>
+                <div>
+                    <p class="eyebrow">Escola Biblica Dominical</p>
+                    <h1>Sistema EBD</h1>
+                </div>
+            </div>
+            <form id="loginForm" class="form-stack">
+                <label>
+                    E-mail
+                    <input name="email" type="email" value="admin@ebd.local" required>
+                </label>
+                <label>
+                    Senha
+                    <input name="password" type="password" value="admin123" required>
+                </label>
+                <button type="submit">Entrar</button>
+                <p id="loginError" class="error-text"></p>
+            </form>
+        </section>
+    </main>
+
+    <main id="appView" class="app-shell hidden">
+        <aside class="sidebar">
+            <div class="brand-lockup">
+                <span class="brand-mark" aria-hidden="true">✚</span>
+                <strong>Sistema EBD</strong>
+            </div>
+            <nav>
+                <button class="nav-item active" data-page="courses">Cursos</button>
+                <button class="nav-item" data-page="people">Pessoas</button>
+                <button class="nav-item" data-page="secretaria">Secretaria</button>
+                <button class="nav-item" data-page="pedagogico">Pedagogico</button>
+                <button class="nav-item" data-page="settings">Configuracoes</button>
+            </nav>
+            <button id="logoutButton" class="secondary">Sair</button>
+        </aside>
+
+        <section id="coursesPage" class="content app-page">
+            <header class="page-header">
+                <div>
+                    <p id="userLabel" class="eyebrow"></p>
+                    <h1>Cursos</h1>
+                </div>
+                <button id="newCourseButton" class="icon-button" aria-label="Novo curso" title="Novo curso">+</button>
+            </header>
+
+            <section class="table-panel">
+                <div class="table-head row course-row">
+                    <span>Curso</span>
+                    <span>Descricao</span>
+                    <span>Status</span>
+                    <span>Acoes</span>
+                </div>
+                <div id="courseRows"></div>
+                <p id="emptyCourses" class="empty-text hidden">Nenhum curso cadastrado.</p>
+            </section>
+        </section>
+
+        <section id="classesPage" class="content app-page hidden">
+            <header class="page-header">
+                <div>
+                    <button id="backToCoursesButton" class="text-button" type="button">Voltar para cursos</button>
+                    <p class="eyebrow">Classes do curso</p>
+                    <h1 id="classesCourseTitle">Classes</h1>
+                </div>
+                <button id="newClassButton" class="icon-button" aria-label="Nova classe" title="Nova classe">+</button>
+            </header>
+
+            <section class="table-panel">
+                <div class="table-head row class-row">
+                    <span>Classe</span>
+                    <span>Curso</span>
+                    <span>Status</span>
+                    <span>Acoes</span>
+                </div>
+                <div id="classRows"></div>
+                <p id="emptyClasses" class="empty-text hidden">Nenhuma classe cadastrada.</p>
+            </section>
+        </section>
+
+        <section id="peoplePage" class="content app-page hidden">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Administrativo</p>
+                    <h1>Pessoas</h1>
+                </div>
+                <button id="newPersonButton" class="icon-button" aria-label="Nova pessoa" title="Nova pessoa">+</button>
+            </header>
+
+            <section class="table-panel">
+                <div class="table-head row person-row">
+                    <span>Nome</span>
+                    <span>E-mail</span>
+                    <span>Telefone</span>
+                    <span>Acoes</span>
+                </div>
+                <div id="personRows"></div>
+                <p id="emptyPeople" class="empty-text hidden">Nenhuma pessoa cadastrada.</p>
+            </section>
+        </section>
+
+        <section id="secretariaPage" class="content app-page hidden">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Secretaria</p>
+                    <h1>Calendario de chamadas</h1>
+                </div>
+            </header>
+
+            <section class="calendar-toolbar">
+                <button id="previousMonthButton" class="ghost-icon" type="button" aria-label="Mes anterior">‹</button>
+                <input id="calendarMonth" type="month">
+                <button id="nextMonthButton" class="ghost-icon" type="button" aria-label="Proximo mes">›</button>
+            </section>
+
+            <section class="calendar-panel">
+                <div class="calendar-weekdays">
+                    <span>Dom</span>
+                    <span>Seg</span>
+                    <span>Ter</span>
+                    <span>Qua</span>
+                    <span>Qui</span>
+                    <span>Sex</span>
+                    <span>Sab</span>
+                </div>
+                <div id="calendarGrid" class="calendar-grid"></div>
+            </section>
+
+            <p id="lessonMessage" class="empty-text">Escolha uma classe em um domingo do calendario para criar ou editar a chamada.</p>
+        </section>
+
+        <section id="pedagogicoPage" class="content app-page hidden">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Pedagogico</p>
+                    <h1>Alunos</h1>
+                </div>
+            </header>
+
+            <section class="table-panel">
+                <div class="table-head row student-report-row">
+                    <span>Aluno</span>
+                    <span>E-mail</span>
+                    <span>Classes</span>
+                    <span>Acoes</span>
+                </div>
+                <div id="pedagogicoStudentRows"></div>
+                <p id="emptyPedagogicoStudents" class="empty-text hidden">Nenhum aluno matriculado em classe.</p>
+            </section>
+        </section>
+
+        <section id="studentReportsPage" class="content app-page hidden">
+            <header class="page-header">
+                <div>
+                    <button id="backToPedagogicoButton" class="text-button" type="button">Voltar para alunos</button>
+                    <p class="eyebrow">Relatorios pedagogicos</p>
+                    <h1 id="studentReportsTitle">Relatorios</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="studentOpinionButton" type="button">Gerar parecer</button>
+                    <button id="newReportButton" class="icon-button" aria-label="Novo relatorio" title="Novo relatorio">+</button>
+                </div>
+            </header>
+
+            <section class="table-panel">
+                <div class="table-head row report-row">
+                    <span>Data</span>
+                    <span>Classe</span>
+                    <span>Titulo</span>
+                    <span>Autor</span>
+                    <span>Acoes</span>
+                </div>
+                <div id="reportRows"></div>
+                <p id="emptyReports" class="empty-text hidden">Nenhum relatorio cadastrado.</p>
+            </section>
+
+            <section class="table-panel stacked-panel">
+                <div class="table-head row opinion-row">
+                    <span>Gerado em</span>
+                    <span>Relatorios</span>
+                    <span>Modelo</span>
+                    <span>Autor</span>
+                    <span>Acoes</span>
+                </div>
+                <div id="storedOpinionRows"></div>
+                <p id="emptyStoredOpinions" class="empty-text hidden">Nenhum parecer gerado ainda.</p>
+            </section>
+        </section>
+
+        <section id="settingsPage" class="content app-page hidden">
+            <header class="page-header">
+                <div>
+                    <p class="eyebrow">Configuracoes</p>
+                    <h1>OpenAI</h1>
+                </div>
+            </header>
+
+            <form id="settingsForm" class="lesson-panel">
+                <p id="openaiStatus" class="muted-note">Verificando configuracao...</p>
+                <label>
+                    Chave secreta da OpenAI
+                    <input name="api_key" type="password" placeholder="Cole a chave aqui para salvar ou atualizar">
+                </label>
+                <label>
+                    Modelo para pareceres
+                    <input name="model" value="gpt-5.5">
+                </label>
+                <label>
+                    Prompt de geracao do parecer
+                    <textarea name="opinion_prompt" rows="8"></textarea>
+                </label>
+                <footer class="form-actions">
+                    <button type="submit">Salvar configuracoes</button>
+                </footer>
+            </form>
+        </section>
+    </main>
+
+    <dialog id="lessonModal">
+        <form id="lessonForm" class="modal-card large-modal" method="dialog">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">Chamada selecionada</p>
+                    <h2 id="selectedLessonLabel">Chamada</h2>
+                </div>
+                <button type="button" class="ghost-icon" id="closeLessonModal" aria-label="Fechar">x</button>
+            </header>
+            <input id="lessonDate" type="hidden">
+            <input id="lessonClass" type="hidden">
+            <div class="form-grid">
+                <label>
+                    Aula ministrada
+                    <input name="title" required maxlength="160">
+                </label>
+                <label>
+                    Professor
+                    <select name="teacher_person_id" required></select>
+                </label>
+            </div>
+            <label>
+                Observacoes
+                <textarea name="notes" rows="3"></textarea>
+            </label>
+
+            <section class="table-panel">
+                <div class="table-head row attendance-row">
+                    <span>Aluno</span>
+                    <span>Presenca</span>
+                    <span>Observacao</span>
+                </div>
+                <div id="attendanceRows"></div>
+                <p id="emptyAttendance" class="empty-text hidden">Nenhum aluno vinculado a esta classe.</p>
+            </section>
+
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="cancelLessonButton">Cancelar</button>
+                <button type="submit">Salvar chamada</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <dialog id="reportModal">
+        <form id="reportForm" class="modal-card large-modal" method="dialog">
+            <header class="modal-header">
+                <h2 id="reportModalTitle">Novo relatorio</h2>
+                <button type="button" class="ghost-icon" id="closeReportModal" aria-label="Fechar">x</button>
+            </header>
+            <input type="hidden" name="id">
+            <input type="hidden" name="student_person_id">
+            <div class="form-grid">
+                <label>
+                    Classe
+                    <select name="class_id" required></select>
+                </label>
+                <label>
+                    Aluno
+                    <input name="student_name" disabled>
+                </label>
+            </div>
+            <div class="form-grid">
+                <label>
+                    Data
+                    <input name="report_date" type="date" required>
+                </label>
+                <label>
+                    Titulo
+                    <input name="title" required maxlength="160">
+                </label>
+            </div>
+            <label>
+                Relatorio
+                <textarea name="body" rows="7" required></textarea>
+            </label>
+            <section class="audio-tools">
+                <button type="button" class="secondary" id="startRecordingButton">Gravar audio</button>
+                <button type="button" class="secondary hidden" id="stopRecordingButton">Parar e transcrever</button>
+                <span id="recordingStatus" class="muted-note">Use o microfone para preencher o relatorio por transcricao.</span>
+            </section>
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="cancelReportButton">Cancelar</button>
+                <button type="submit">Salvar</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <dialog id="opinionModal">
+        <form class="modal-card large-modal" method="dialog">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">Parecer consolidado</p>
+                    <h2 id="opinionModalTitle">Parecer</h2>
+                </div>
+                <button type="button" class="ghost-icon" id="closeOpinionModal" aria-label="Fechar">x</button>
+            </header>
+            <textarea id="opinionText" rows="18"></textarea>
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="copyOpinionButton">Copiar</button>
+                <button type="button" class="secondary" id="printOpinionButton">Imprimir</button>
+                <button type="button" id="cancelOpinionButton">Fechar</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <dialog id="courseModal">
+        <form id="courseForm" class="modal-card" method="dialog">
+            <header class="modal-header">
+                <h2 id="courseModalTitle">Novo curso</h2>
+                <button type="button" class="ghost-icon" id="closeCourseModal" aria-label="Fechar">x</button>
+            </header>
+            <input type="hidden" name="id">
+            <label>
+                Nome
+                <input name="name" required maxlength="120">
+            </label>
+            <label>
+                Descricao
+                <textarea name="description" rows="4"></textarea>
+            </label>
+            <label class="check-line">
+                <input name="active" type="checkbox" checked>
+                Ativo
+            </label>
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="cancelCourseButton">Cancelar</button>
+                <button type="submit">Salvar</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <dialog id="classModal">
+        <form id="classForm" class="modal-card" method="dialog">
+            <header class="modal-header">
+                <h2 id="classModalTitle">Nova classe</h2>
+                <button type="button" class="ghost-icon" id="closeClassModal" aria-label="Fechar">x</button>
+            </header>
+            <input type="hidden" name="id">
+            <input type="hidden" name="course_id">
+            <label>
+                Nome
+                <input name="name" required maxlength="120">
+            </label>
+            <label>
+                Descricao
+                <textarea name="description" rows="4"></textarea>
+            </label>
+            <label class="check-line">
+                <input name="active" type="checkbox" checked>
+                Ativo
+            </label>
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="cancelClassButton">Cancelar</button>
+                <button type="submit">Salvar</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <dialog id="classPeopleModal">
+        <form id="classPeopleForm" class="modal-card large-modal" method="dialog">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">Associacoes</p>
+                    <h2 id="classPeopleModalTitle">Pessoas da classe</h2>
+                </div>
+                <button type="button" class="ghost-icon" id="closeClassPeopleModal" aria-label="Fechar">x</button>
+            </header>
+            <input type="hidden" name="class_id">
+            <div class="dual-list">
+                <section>
+                    <h3>Alunos</h3>
+                    <div id="studentChoices" class="choice-list"></div>
+                </section>
+                <section>
+                    <h3>Professores</h3>
+                    <div id="teacherChoices" class="choice-list"></div>
+                </section>
+            </div>
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="cancelClassPeopleButton">Cancelar</button>
+                <button type="submit">Salvar</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <dialog id="personModal">
+        <form id="personForm" class="modal-card" method="dialog">
+            <header class="modal-header">
+                <h2 id="personModalTitle">Nova pessoa</h2>
+                <button type="button" class="ghost-icon" id="closePersonModal" aria-label="Fechar">x</button>
+            </header>
+            <input type="hidden" name="id">
+            <label>
+                Nome
+                <input name="name" required maxlength="160">
+            </label>
+            <label>
+                E-mail
+                <input name="email" type="email" maxlength="160">
+            </label>
+            <label>
+                Telefone
+                <input name="phone" maxlength="40">
+            </label>
+            <label>
+                Data de nascimento
+                <input name="birth_date" type="date">
+            </label>
+            <label>
+                Observacoes
+                <textarea name="notes" rows="4"></textarea>
+            </label>
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="cancelPersonButton">Cancelar</button>
+                <button type="submit">Salvar</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <dialog id="confirmModal">
+        <form class="modal-card confirm-card" method="dialog">
+            <header class="modal-header">
+                <div>
+                    <p class="eyebrow">Confirmacao</p>
+                    <h2 id="confirmTitle">Confirmar exclusao</h2>
+                </div>
+                <button type="button" class="ghost-icon" id="closeConfirmModal" aria-label="Fechar">x</button>
+            </header>
+            <p id="confirmMessage" class="confirm-message"></p>
+            <footer class="modal-actions">
+                <button type="button" class="secondary" id="cancelConfirmButton">Cancelar</button>
+                <button type="button" class="danger-button" id="confirmActionButton">Excluir</button>
+            </footer>
+        </form>
+    </dialog>
+
+    <script src="/assets/app.js"></script>
+</body>
+</html>

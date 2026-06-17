@@ -1,0 +1,6 @@
+/.vercel/
+/data/*.sqlite
+/data/*.sqlite-*
+/vendor/
+.DS_Store
+.env
