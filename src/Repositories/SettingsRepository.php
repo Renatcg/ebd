@@ -15,12 +15,26 @@ final class SettingsRepository
 
     public function set(string $key, ?string $value): void
     {
-        $stmt = Database::connection()->prepare(
-            'INSERT INTO app_settings (key, value, updated_at)
-             VALUES (:key, :value, CURRENT_TIMESTAMP)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP'
+        $connection = Database::connection();
+        $update = $connection->prepare(
+            'UPDATE app_settings
+             SET value = :value, updated_at = CURRENT_TIMESTAMP
+             WHERE key = :key'
         );
-        $stmt->execute([
+        $update->execute([
+            'key' => $key,
+            'value' => $value,
+        ]);
+
+        if ($update->rowCount() > 0) {
+            return;
+        }
+
+        $insert = $connection->prepare(
+            'INSERT INTO app_settings (key, value, updated_at)
+             VALUES (:key, :value, CURRENT_TIMESTAMP)'
+        );
+        $insert->execute([
             'key' => $key,
             'value' => $value,
         ]);
