@@ -1372,3 +1372,244 @@ dialog::backdrop {
         width: 100%;
     }
 }
+
+/* Monochrome theme */
+:root {
+    --bg: #fffef8;
+    --panel: #fffef8;
+    --panel-soft: #f8f6ef;
+    --ink: #0b0b0b;
+    --muted: rgba(11, 11, 11, 0.62);
+    --line: rgba(11, 11, 11, 0.16);
+    --accent: #0b0b0b;
+    --accent-dark: #262626;
+    --gold: #0b0b0b;
+    --green: #0b0b0b;
+    --danger: #0b0b0b;
+    --shadow: 0 22px 54px rgba(11, 11, 11, 0.12);
+    --soft-shadow: 0 10px 26px rgba(11, 11, 11, 0.07);
+}
+
+body {
+    background: var(--bg);
+    color: var(--ink);
+}
+
+body::before {
+    color: rgba(11, 11, 11, 0.035);
+}
+
+button {
+    background: var(--ink);
+    color: var(--bg);
+}
+
+button:hover {
+    background: var(--accent-dark);
+}
+
+input,
+select,
+textarea {
+    background: var(--panel);
+    color: var(--ink);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px rgba(11, 11, 11, 0.12);
+}
+
+.eyebrow,
+.error-text,
+.text-button,
+.text-button:hover,
+.muted-note,
+.empty-text {
+    color: var(--muted);
+}
+
+.brand-mark {
+    border-color: rgba(11, 11, 11, 0.24);
+    background: var(--panel);
+    color: var(--ink);
+}
+
+.login-shell {
+    background:
+        linear-gradient(115deg, rgba(11, 11, 11, 0.96) 0 50%, rgba(34, 34, 34, 0.94) 50% 100%),
+        var(--ink);
+    color: var(--panel);
+}
+
+.login-shell::before {
+    background:
+        linear-gradient(105deg, transparent 0 30%, rgba(255, 254, 248, 0.13) 30% 34%, transparent 34% 48%, rgba(255, 254, 248, 0.09) 48% 50%, transparent 50%),
+        linear-gradient(78deg, transparent 0 54%, rgba(255, 254, 248, 0.08) 54% 58%, transparent 58%);
+}
+
+.login-shell::after {
+    color: rgba(255, 254, 248, 0.1);
+}
+
+.login-cross {
+    filter: drop-shadow(0 26px 60px rgba(255, 254, 248, 0.16));
+}
+
+.login-cross::before,
+.login-cross::after {
+    background: linear-gradient(180deg, #fffef8, #f3f1e8);
+    box-shadow: inset 0 0 0 1px rgba(11, 11, 11, 0.22);
+}
+
+.login-book {
+    border-color: rgba(255, 254, 248, 0.32);
+    background:
+        linear-gradient(90deg, transparent 49%, rgba(255, 254, 248, 0.34) 49% 51%, transparent 51%),
+        linear-gradient(180deg, rgba(255, 254, 248, 0.14), rgba(255, 254, 248, 0.02));
+}
+
+.login-book::before,
+.login-book::after {
+    border-top-color: rgba(255, 254, 248, 0.48);
+}
+
+.login-panel,
+.table-panel,
+.toolbar-panel,
+.lesson-panel,
+.calendar-panel {
+    border-color: var(--line);
+    background: rgba(255, 254, 248, 0.96);
+}
+
+.login-panel {
+    border-color: rgba(255, 254, 248, 0.24);
+    background: rgba(255, 254, 248, 0.97);
+    box-shadow: 0 34px 90px rgba(0, 0, 0, 0.34);
+}
+
+.login-panel::before {
+    border-color: rgba(11, 11, 11, 0.12);
+}
+
+.login-panel .brand-mark {
+    background: var(--ink);
+    color: var(--panel);
+}
+
+.login-panel .eyebrow {
+    color: var(--muted);
+}
+
+.sidebar {
+    border-right-color: var(--line);
+    background: var(--ink);
+    color: var(--panel);
+}
+
+.sidebar .brand-mark {
+    border-color: rgba(255, 254, 248, 0.28);
+    background: transparent;
+    color: var(--panel);
+}
+
+.nav-item.active {
+    background: var(--panel);
+    color: var(--ink);
+}
+
+.nav-item:hover,
+.secondary:hover {
+    background: rgba(255, 254, 248, 0.12);
+}
+
+.ghost-icon {
+    border-color: var(--line);
+    background: var(--panel);
+    color: var(--ink);
+}
+
+.ghost-icon:hover {
+    background: var(--panel-soft);
+    color: var(--ink);
+}
+
+.ghost-icon.danger {
+    color: var(--ink);
+}
+
+.danger-button,
+.danger-button:hover {
+    background: var(--ink);
+    color: var(--panel);
+}
+
+.table-head,
+.calendar-weekdays {
+    background: var(--panel-soft);
+    color: var(--muted);
+}
+
+.row {
+    border-bottom-color: var(--line);
+}
+
+.row:not(.table-head):hover {
+    background: rgba(11, 11, 11, 0.035);
+}
+
+.calendar-cell,
+.calendar-cell.sunday,
+.calendar-class-button,
+.calendar-class-button.unsaved {
+    background: var(--panel);
+}
+
+.calendar-cell strong,
+.calendar-cell.sunday strong::after {
+    color: var(--ink);
+}
+
+.muted-cell {
+    background: var(--panel-soft);
+}
+
+.calendar-class-button.saved {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--panel);
+}
+
+.calendar-class-button.saved::after {
+    background: var(--panel);
+}
+
+dialog::backdrop {
+    background: rgba(11, 11, 11, 0.58);
+}
+
+.modal-card {
+    background: var(--panel);
+    border-top-color: var(--ink);
+}
+
+.choice-list,
+.audio-tools,
+#opinionText {
+    background: var(--panel);
+}
+
+@media (max-width: 900px) {
+    .sidebar {
+        border-bottom-color: var(--line);
+    }
+}
+
+@media (max-width: 760px) {
+    .calendar-cell.sunday {
+        background: var(--panel);
+    }
+}
