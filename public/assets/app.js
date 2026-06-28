@@ -71,6 +71,8 @@ const opinionModalTitle = document.querySelector('#opinionModalTitle');
 const opinionText = document.querySelector('#opinionText');
 const settingsForm = document.querySelector('#settingsForm');
 const openaiStatus = document.querySelector('#openaiStatus');
+const logoPreview = document.querySelector('#logoPreview');
+const logoPlaceholder = document.querySelector('#logoPlaceholder');
 const confirmModal = document.querySelector('#confirmModal');
 const confirmTitle = document.querySelector('#confirmTitle');
 const confirmMessage = document.querySelector('#confirmMessage');
@@ -143,16 +145,45 @@ document.querySelector('#closeConfirmModal').addEventListener('click', () => con
 cancelConfirmButton.addEventListener('click', () => confirmModal.close('cancel'));
 startRecordingButton.addEventListener('click', () => startRecording());
 stopRecordingButton.addEventListener('click', () => stopRecording());
+settingsForm.elements.logo_file.addEventListener('change', async () => {
+    const file = settingsForm.elements.logo_file.files[0] || null;
+
+    if (file === null) {
+        return;
+    }
+
+    const logoData = await readLogoFile(file);
+
+    if (logoData?.error) {
+        alert(logoData.error);
+        settingsForm.elements.logo_file.value = '';
+        return;
+    }
+
+    renderLogoPreview(logoData);
+});
 settingsForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     const form = new FormData(settingsForm);
+    const logoFile = form.get('logo_file');
+    const logoData = logoFile instanceof File && logoFile.size > 0
+        ? await readLogoFile(logoFile)
+        : null;
+
+    if (logoData?.error) {
+        alert(logoData.error);
+        return;
+    }
+
     const response = await api('/api/settings/openai', {
         method: 'PUT',
         body: {
             api_key: form.get('api_key'),
             model: form.get('model'),
             opinion_prompt: form.get('opinion_prompt'),
+            app_logo_data: logoData,
+            remove_logo: form.get('remove_logo') === 'on',
         },
     });
 
@@ -162,6 +193,8 @@ settingsForm.addEventListener('submit', async (event) => {
     }
 
     settingsForm.elements.api_key.value = '';
+    settingsForm.elements.logo_file.value = '';
+    settingsForm.elements.remove_logo.checked = false;
     renderSettings(response.data);
     alert('Configuracoes salvas.');
 });
@@ -323,6 +356,8 @@ reportForm.addEventListener('submit', async (event) => {
 });
 
 async function bootstrap() {
+    await loadBranding();
+
     if (!state.token) {
         showLogin();
         return;
@@ -356,6 +391,14 @@ async function enterApp() {
 function showLogin() {
     appView.classList.add('hidden');
     loginView.classList.remove('hidden');
+}
+
+async function loadBranding() {
+    const response = await api('/api/branding', { public: true });
+
+    if (!response.error) {
+        applyBranding(response.data.app_logo_data || '');
+    }
 }
 
 async function loadCourses() {
@@ -1086,6 +1129,44 @@ function renderSettings(settings) {
         : 'Chave da OpenAI ainda nao configurada.';
     settingsForm.elements.model.value = settings.openai_model || 'gpt-5.5';
     settingsForm.elements.opinion_prompt.value = settings.openai_opinion_prompt || '';
+    applyBranding(settings.app_logo_data || '');
+    renderLogoPreview(settings.app_logo_data || '');
+}
+
+function applyBranding(logoData) {
+    document.querySelectorAll('.app-logo').forEach((image) => {
+        image.src = logoData || '';
+        image.classList.toggle('hidden', logoData === '');
+    });
+
+    document.querySelectorAll('.brand-fallback').forEach((fallback) => {
+        fallback.classList.toggle('hidden', logoData !== '');
+    });
+}
+
+function renderLogoPreview(logoData) {
+    logoPreview.src = logoData || '';
+    logoPreview.classList.toggle('hidden', logoData === '');
+    logoPlaceholder.classList.toggle('hidden', logoData !== '');
+}
+
+function readLogoFile(file) {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+
+    if (!allowedTypes.includes(file.type)) {
+        return { error: 'Envie uma logomarca em PNG, JPG, WebP ou SVG.' };
+    }
+
+    if (file.size > 600 * 1024) {
+        return { error: 'A logomarca deve ter no maximo 600 KB.' };
+    }
+
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => resolve({ error: 'Nao foi possivel ler o arquivo da logomarca.' });
+        reader.readAsDataURL(file);
+    });
 }
 
 function askConfirmation(message, title = 'Confirmar exclusao') {

@@ -40,14 +40,27 @@ final class SettingsRepository
         ]);
     }
 
+    public function delete(string $key): void
+    {
+        $stmt = Database::connection()->prepare('DELETE FROM app_settings WHERE key = :key');
+        $stmt->execute(['key' => $key]);
+    }
+
     public function publicSettings(): array
     {
         $apiKey = $this->get('openai_api_key');
 
-        return [
+        return array_merge([
             'openai_configured' => $apiKey !== null && trim($apiKey) !== '',
             'openai_model' => $this->get('openai_model', 'gpt-5.5'),
             'openai_opinion_prompt' => $this->get('openai_opinion_prompt', $this->defaultOpinionPrompt()),
+        ], $this->branding());
+    }
+
+    public function branding(): array
+    {
+        return [
+            'app_logo_data' => trim((string) $this->get('app_logo_data', '')),
         ];
     }
 

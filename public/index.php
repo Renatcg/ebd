@@ -49,6 +49,10 @@ function handleApi(string $path): void
         Response::json(['user' => Auth::requireUser()]);
     }
 
+    if ($path === '/api/branding' && $method === 'GET') {
+        Response::json(['data' => (new SettingsRepository())->branding()]);
+    }
+
     if ($path === '/api/settings' && $method === 'GET') {
         Auth::requireRole(['admin']);
         Response::json(['data' => (new SettingsRepository())->publicSettings()]);
@@ -60,6 +64,8 @@ function handleApi(string $path): void
         $apiKey = trim((string) ($input['api_key'] ?? ''));
         $model = trim((string) ($input['model'] ?? 'gpt-5.5'));
         $prompt = trim((string) ($input['opinion_prompt'] ?? ''));
+        $logoData = trim((string) ($input['app_logo_data'] ?? ''));
+        $removeLogo = (bool) ($input['remove_logo'] ?? false);
 
         if ($apiKey !== '') {
             $settings->set('openai_api_key', $apiKey);
@@ -71,6 +77,13 @@ function handleApi(string $path): void
 
         if ($prompt !== '') {
             $settings->set('openai_opinion_prompt', $prompt);
+        }
+
+        if ($removeLogo) {
+            $settings->delete('app_logo_data');
+        } elseif ($logoData !== '') {
+            validateLogoData($logoData);
+            $settings->set('app_logo_data', $logoData);
         }
 
         Response::json(['data' => $settings->publicSettings()]);
@@ -379,5 +392,16 @@ function validateStudentReportInput(array $input): void
 
     if (!DateTimeImmutable::createFromFormat('Y-m-d', $date)) {
         Response::error('Informe uma data valida.', 422);
+    }
+}
+
+function validateLogoData(string $logoData): void
+{
+    if (strlen($logoData) > 850000) {
+        Response::error('A logomarca deve ter no maximo 600 KB.', 422);
+    }
+
+    if (!preg_match('#^data:image/(png|jpeg|webp|svg\+xml);base64,#', $logoData)) {
+        Response::error('Envie uma logomarca em PNG, JPG, WebP ou SVG.', 422);
     }
 }

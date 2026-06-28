@@ -8,16 +8,15 @@
 </head>
 <body>
     <main id="loginView" class="login-shell">
-        <div class="login-stage" aria-hidden="true">
-            <span class="login-cross"></span>
-            <span class="login-book"></span>
-        </div>
         <section class="login-panel">
-            <div class="brand-lockup login-brand">
-                <span class="brand-mark" aria-hidden="true">✚</span>
-                <div>
+            <div class="brand-lockup login-brand app-brand">
+                <img class="app-logo hidden" alt="Logomarca">
+                <div class="brand-fallback">
+                    <span class="brand-mark" aria-hidden="true">✚</span>
+                    <div>
                     <p class="eyebrow">Escola Biblica Dominical</p>
                     <h1>Sistema EBD</h1>
+                    </div>
                 </div>
             </div>
             <form id="loginForm" class="form-stack">
@@ -37,9 +36,12 @@
 
     <main id="appView" class="app-shell hidden">
         <aside class="sidebar">
-            <div class="brand-lockup">
-                <span class="brand-mark" aria-hidden="true">✚</span>
-                <strong>Sistema EBD</strong>
+            <div class="brand-lockup app-brand">
+                <img class="app-logo hidden" alt="Logomarca">
+                <div class="brand-fallback sidebar-brand-fallback">
+                    <span class="brand-mark" aria-hidden="true">✚</span>
+                    <strong>Sistema EBD</strong>
+                </div>
             </div>
             <nav>
                 <button class="nav-item active" data-page="courses">Cursos</button>
@@ -207,12 +209,31 @@
             <header class="page-header">
                 <div>
                     <p class="eyebrow">Configuracoes</p>
-                    <h1>OpenAI</h1>
+                    <h1>Sistema</h1>
                 </div>
             </header>
 
             <form id="settingsForm" class="lesson-panel">
                 <p id="openaiStatus" class="muted-note">Verificando configuracao...</p>
+                <section class="logo-settings">
+                    <div>
+                        <p class="eyebrow">Identidade visual</p>
+                        <h2>Logomarca do sistema</h2>
+                        <p class="muted-note">Envie uma imagem para substituir a marca padrao no login e no menu.</p>
+                    </div>
+                    <div class="logo-preview-box">
+                        <img id="logoPreview" class="app-logo-preview hidden" alt="Previa da logomarca">
+                        <span id="logoPlaceholder" class="logo-placeholder">Sem logomarca</span>
+                    </div>
+                    <label>
+                        Arquivo da logomarca
+                        <input name="logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+                    </label>
+                    <label class="check-line">
+                        <input name="remove_logo" type="checkbox">
+                        Remover logomarca salva
+                    </label>
+                </section>
                 <label>
                     Chave secreta da OpenAI
                     <input name="api_key" type="password" placeholder="Cole uma nova chave somente quando quiser salvar ou trocar">
