@@ -9,28 +9,44 @@
 <body>
     <main id="loginView" class="login-shell">
         <section class="login-panel">
-            <div class="brand-lockup login-brand app-brand">
-                <img class="app-logo hidden" alt="Logomarca">
-                <div class="brand-fallback">
-                    <span class="brand-mark" aria-hidden="true">✚</span>
-                    <div>
-                    <p class="eyebrow">Escola Biblica Dominical</p>
-                    <h1>Sistema EBD</h1>
+            <section class="login-info">
+                <div class="brand-lockup login-brand app-brand">
+                    <img class="app-logo hidden" alt="Logomarca">
+                    <div class="brand-fallback">
+                        <span class="brand-mark" aria-hidden="true">✚</span>
+                        <div>
+                            <p class="eyebrow">Escola Biblica Dominical</p>
+                            <h1>Sistema EBD</h1>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <form id="loginForm" class="form-stack">
-                <label>
-                    E-mail
-                    <input name="email" type="email" value="admin@ebd.local" required>
-                </label>
-                <label>
-                    Senha
-                    <input name="password" type="password" value="admin123" required>
-                </label>
-                <button type="submit">Entrar</button>
-                <p id="loginError" class="error-text"></p>
-            </form>
+                <div>
+                    <p class="eyebrow">Gestao da EBD</p>
+                    <h2>Organize cursos, classes, chamadas e acompanhamento pedagogico.</h2>
+                </div>
+                <p class="login-copy">Acesse com seu usuario para manter cadastros, registrar presencas dominicais e gerar pareceres pedagogicos com apoio da IA.</p>
+                <p class="login-footnote">Ambiente protegido para administracao da Escola Biblica Dominical.</p>
+            </section>
+
+            <section class="login-form-panel">
+                <div class="login-form-heading">
+                    <p class="eyebrow">Entrar</p>
+                    <h2>Acessar conta</h2>
+                    <p class="muted-note">Use seu e-mail e senha para acessar o sistema.</p>
+                </div>
+                <form id="loginForm" class="form-stack">
+                    <label>
+                        E-mail
+                        <input name="email" type="email" value="admin@ebd.local" required>
+                    </label>
+                    <label>
+                        Senha
+                        <input name="password" type="password" value="admin123" required>
+                    </label>
+                    <button type="submit">Entrar</button>
+                    <p id="loginError" class="error-text"></p>
+                </form>
+            </section>
         </section>
     </main>
 

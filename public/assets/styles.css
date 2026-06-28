@@ -1691,3 +1691,160 @@ dialog::backdrop {
     color: var(--muted);
     font-weight: 700;
 }
+
+.login-shell {
+    padding: clamp(18px, 5vw, 56px);
+}
+
+.login-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+    width: min(1120px, 100%);
+    min-height: min(620px, calc(100dvh - 72px));
+    overflow: hidden;
+    border: 1px solid rgba(255, 254, 248, 0.16);
+    border-radius: 12px;
+    background: transparent;
+    padding: 0;
+}
+
+.login-panel::before {
+    content: none;
+}
+
+.login-info,
+.login-form-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(28px, 5vw, 56px);
+}
+
+.login-info {
+    gap: 30px;
+    border-right: 1px solid rgba(255, 254, 248, 0.16);
+    color: var(--panel);
+}
+
+.login-info .eyebrow,
+.login-info .muted-note {
+    color: rgba(255, 254, 248, 0.62);
+}
+
+.login-info h2 {
+    max-width: 640px;
+    margin: 0;
+    color: var(--panel);
+    font-size: clamp(34px, 5vw, 56px);
+    font-weight: 800;
+    line-height: 1.08;
+}
+
+.login-copy {
+    max-width: 580px;
+    color: rgba(255, 254, 248, 0.68);
+    font-size: 17px;
+    line-height: 1.7;
+}
+
+.login-footnote {
+    margin-top: auto;
+    max-width: 560px;
+    color: rgba(255, 254, 248, 0.48);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.login-form-panel {
+    gap: 28px;
+    background: var(--panel);
+    color: var(--ink);
+}
+
+.login-form-heading h2 {
+    margin: 0 0 10px;
+    color: var(--ink);
+    font-size: clamp(28px, 3vw, 38px);
+}
+
+.login-form-panel .eyebrow,
+.login-form-panel .muted-note {
+    color: var(--muted);
+}
+
+.login-form-panel input {
+    min-height: 58px;
+    background: var(--panel-soft);
+    font-weight: 700;
+}
+
+.login-form-panel button[type="submit"] {
+    min-height: 58px;
+    font-size: 16px;
+}
+
+.login-info .brand-fallback {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.login-info .brand-mark {
+    border-color: rgba(255, 254, 248, 0.28);
+    background: transparent;
+    color: var(--panel);
+}
+
+.login-info .brand-fallback h1 {
+    color: var(--panel);
+    font-size: 30px;
+}
+
+.login-info .app-logo {
+    height: 92px;
+    max-width: min(360px, 100%);
+}
+
+@media (max-width: 900px) {
+    .login-shell {
+        padding: 16px;
+    }
+
+    .login-panel {
+        grid-template-columns: 1fr;
+        min-height: auto;
+    }
+
+    .login-info {
+        min-height: 360px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 254, 248, 0.16);
+    }
+
+    .login-footnote {
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 760px) {
+    .login-panel {
+        border-radius: 10px;
+    }
+
+    .login-info,
+    .login-form-panel {
+        padding: 24px;
+    }
+
+    .login-info {
+        min-height: auto;
+    }
+
+    .login-info h2 {
+        font-size: 31px;
+    }
+
+    .login-copy {
+        font-size: 15px;
+    }
+}
