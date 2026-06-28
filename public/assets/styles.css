@@ -1693,14 +1693,14 @@ dialog::backdrop {
 }
 
 .login-shell {
-    padding: clamp(18px, 5vw, 56px);
+    padding: clamp(12px, 3.5vw, 36px);
 }
 
 .login-panel {
     display: grid;
     grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
     width: min(1120px, 100%);
-    min-height: min(620px, calc(100dvh - 72px));
+    min-height: min(560px, calc(100dvh - 32px));
     overflow: hidden;
     border: 1px solid rgba(255, 254, 248, 0.16);
     border-radius: 12px;
@@ -1717,7 +1717,7 @@ dialog::backdrop {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: clamp(28px, 5vw, 56px);
+    padding: clamp(24px, 4vw, 42px);
 }
 
 .login-info {
@@ -1807,7 +1807,7 @@ dialog::backdrop {
 
 @media (max-width: 900px) {
     .login-shell {
-        padding: 16px;
+        padding: 12px;
     }
 
     .login-panel {
