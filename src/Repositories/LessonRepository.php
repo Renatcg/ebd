@@ -94,7 +94,7 @@ final class LessonRepository
                     'teacher_person_id' => $teacherId,
                     'notes' => $notes,
                 ]);
-                $lessonId = (int) $pdo->lastInsertId();
+                $lessonId = (int) Database::lastInsertId('lessons');
             } else {
                 $lessonId = (int) $lesson['id'];
                 $stmt = $pdo->prepare(

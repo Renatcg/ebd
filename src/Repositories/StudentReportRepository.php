@@ -148,7 +148,7 @@ final class StudentReportRepository
             'report_date' => trim($data['report_date']),
         ]);
 
-        return $this->find((int) Database::connection()->lastInsertId());
+        return $this->find((int) Database::lastInsertId('student_reports'));
     }
 
     public function update(int $id, array $data): ?array

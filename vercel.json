@@ -19,8 +19,5 @@
             "src": "/(.*)",
             "dest": "/api/index.php"
         }
-    ],
-    "env": {
-        "EBD_DATABASE_PATH": "/tmp/ebd.sqlite"
-    }
+    ]
 }

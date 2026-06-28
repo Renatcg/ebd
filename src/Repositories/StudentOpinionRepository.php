@@ -36,7 +36,7 @@ final class StudentOpinionRepository
             'source_report_count' => $reportCount,
         ]);
 
-        return $this->find((int) Database::connection()->lastInsertId());
+        return $this->find((int) Database::lastInsertId('student_opinions'));
     }
 
     private function find(int $id): array

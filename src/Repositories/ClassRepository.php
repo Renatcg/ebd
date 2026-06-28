@@ -44,7 +44,7 @@ final class ClassRepository
             'active' => !empty($data['active']) ? 1 : 0,
         ]);
 
-        return $this->find((int) Database::connection()->lastInsertId());
+        return $this->find((int) Database::lastInsertId('classes'));
     }
 
     public function update(int $id, array $data): ?array

@@ -6,6 +6,7 @@ Base em PHP para gestao da Escola Biblica Dominical.
 
 - PHP 8.2+
 - Extensoes PHP: `pdo` e `pdo_sqlite`
+- Para producao persistente: Postgres com `pdo_pgsql`
 
 ## Como rodar localmente
 
@@ -76,10 +77,20 @@ No Vercel, configure estas variaveis de ambiente do projeto:
 
 ```text
 EBD_JWT_SECRET=um-segredo-longo-e-seguro
-OPENAI_API_KEY=sua-chave-da-openai
 ```
 
-Observacao: o SQLite no Vercel usa `/tmp/ebd.sqlite`, que e adequado para demo/preview, mas nao e armazenamento permanente. Para uso real em producao, migre o banco para Postgres, Turso ou outro banco persistente.
+`OPENAI_API_KEY` e opcional como fallback. Se o banco persistente estiver configurado, a chave pode ser salva diretamente em `Configuracoes > OpenAI`.
+
+Para armazenamento persistente no Vercel, conecte um banco Postgres ao projeto. O sistema usa automaticamente uma destas variaveis quando estiver configurada:
+
+```text
+DATABASE_URL
+POSTGRES_URL_NON_POOLING
+POSTGRES_URL
+POSTGRES_PRISMA_URL
+```
+
+Sem uma dessas variaveis, o Vercel usa SQLite em `/tmp/ebd.sqlite`, adequado apenas para demo/preview. Nesse modo temporario, dados e configuracoes salvas no sistema podem se perder em redeploys ou reinicializacoes.
 
 ## O que ja esta implementado
 

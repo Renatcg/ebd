@@ -33,7 +33,7 @@ final class CourseRepository
             'active' => !empty($data['active']) ? 1 : 0,
         ]);
 
-        return $this->find((int) Database::connection()->lastInsertId());
+        return $this->find((int) Database::lastInsertId('courses'));
     }
 
     public function update(int $id, array $data): ?array

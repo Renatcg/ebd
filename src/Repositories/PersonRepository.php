@@ -36,7 +36,7 @@ final class PersonRepository
         );
         $stmt->execute($this->payload($data));
 
-        return $this->find((int) Database::connection()->lastInsertId());
+        return $this->find((int) Database::lastInsertId('people'));
     }
 
     public function update(int $id, array $data): ?array

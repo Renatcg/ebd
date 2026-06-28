@@ -4,6 +4,19 @@ declare(strict_types=1);
 
 final class Config
 {
+    public static function databaseUrl(): ?string
+    {
+        $url = getenv('DATABASE_URL')
+            ?: getenv('POSTGRES_URL_NON_POOLING')
+            ?: getenv('POSTGRES_URL')
+            ?: getenv('POSTGRES_PRISMA_URL')
+            ?: '';
+
+        $url = trim((string) $url);
+
+        return $url === '' ? null : $url;
+    }
+
     public static function databasePath(): string
     {
         if (getenv('EBD_DATABASE_PATH')) {
