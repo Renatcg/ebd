@@ -118,7 +118,11 @@
                     <p class="eyebrow">Administrativo</p>
                     <h1>Pessoas</h1>
                 </div>
-                <button id="newPersonButton" class="icon-button" aria-label="Nova pessoa" title="Nova pessoa">+</button>
+                <div class="header-actions">
+                    <button id="importPeopleButton" class="secondary" type="button">Importar</button>
+                    <button id="newPersonButton" class="icon-button" aria-label="Nova pessoa" title="Nova pessoa">+</button>
+                    <input id="peopleImportFile" class="hidden" type="file" accept=".csv,text/csv">
+                </div>
             </header>
 
             <section class="table-panel">

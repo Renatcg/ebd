@@ -28,6 +28,20 @@ final class PersonRepository
         return $person ?: null;
     }
 
+    public function findByName(string $name): ?array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT id, name, email, phone, birth_date, notes, created_at, updated_at
+             FROM people
+             WHERE LOWER(name) = LOWER(:name)
+             LIMIT 1'
+        );
+        $stmt->execute(['name' => trim($name)]);
+        $person = $stmt->fetch();
+
+        return $person ?: null;
+    }
+
     public function create(array $data): array
     {
         $stmt = Database::connection()->prepare(

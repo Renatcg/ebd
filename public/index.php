@@ -17,6 +17,7 @@ require_once dirname(__DIR__) . '/src/Repositories/StudentOpinionRepository.php'
 require_once dirname(__DIR__) . '/src/Repositories/SettingsRepository.php';
 require_once dirname(__DIR__) . '/src/Services/OpenAITranscriptionService.php';
 require_once dirname(__DIR__) . '/src/Services/OpenAIOpinionService.php';
+require_once dirname(__DIR__) . '/src/Services/PeopleImportService.php';
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '/';
 
@@ -306,6 +307,17 @@ function handleApi(string $path): void
         Auth::requireRole(['admin']);
         validatePersonInput($input);
         Response::json(['data' => (new PersonRepository())->create($input)], 201);
+    }
+
+    if ($path === '/api/people/import' && $method === 'POST') {
+        Auth::requireRole(['admin']);
+        $genderDecisions = json_decode((string) ($_POST['gender_decisions'] ?? '{}'), true);
+        Response::json([
+            'data' => (new PeopleImportService())->import(
+                $_FILES['spreadsheet'] ?? [],
+                is_array($genderDecisions) ? $genderDecisions : []
+            ),
+        ]);
     }
 
     if (preg_match('#^/api/people/(\d+)$#', $path, $matches)) {

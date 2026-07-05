@@ -43,6 +43,7 @@ const emptyPeople = document.querySelector('#emptyPeople');
 const personModal = document.querySelector('#personModal');
 const personForm = document.querySelector('#personForm');
 const personModalTitle = document.querySelector('#personModalTitle');
+const peopleImportFile = document.querySelector('#peopleImportFile');
 const calendarMonth = document.querySelector('#calendarMonth');
 const calendarGrid = document.querySelector('#calendarGrid');
 const lessonModal = document.querySelector('#lessonModal');
@@ -125,6 +126,8 @@ document.querySelector('#cancelClassButton').addEventListener('click', () => cla
 document.querySelector('#closeClassPeopleModal').addEventListener('click', () => classPeopleModal.close());
 document.querySelector('#cancelClassPeopleButton').addEventListener('click', () => classPeopleModal.close());
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
+document.querySelector('#importPeopleButton').addEventListener('click', () => peopleImportFile.click());
+peopleImportFile.addEventListener('change', () => importPeopleFromSpreadsheet());
 document.querySelector('#closePersonModal').addEventListener('click', () => personModal.close());
 document.querySelector('#cancelPersonButton').addEventListener('click', () => personModal.close());
 document.querySelector('#previousMonthButton').addEventListener('click', () => changeCalendarMonth(-1));
@@ -516,6 +519,124 @@ function renderPeople() {
         deleteButton.addEventListener('click', () => deletePerson(person));
         personRows.appendChild(row);
     });
+}
+
+async function importPeopleFromSpreadsheet() {
+    const file = peopleImportFile.files[0] || null;
+    peopleImportFile.value = '';
+
+    if (file === null) {
+        return;
+    }
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+        alert('Envie uma planilha em CSV.');
+        return;
+    }
+
+    let response = await uploadPeopleSpreadsheet(peopleImportFormData(file));
+
+    if (response.error) {
+        alert(response.error);
+        return;
+    }
+
+    if (response.data?.needs_review) {
+        const decisions = await reviewPeopleGenderConflicts(response.data.conflicts);
+
+        if (decisions === null) {
+            return;
+        }
+
+        response = await uploadPeopleSpreadsheet(peopleImportFormData(file, decisions));
+
+        if (response.error) {
+            alert(response.error);
+            return;
+        }
+    }
+
+    const result = response.data;
+    await loadPeople();
+    alert(`Importacao concluida. Novas: ${result.created}. Atualizadas: ${result.updated}. Ignoradas: ${result.skipped}.`);
+}
+
+function peopleImportFormData(file, genderDecisions = {}) {
+    const formData = new FormData();
+    formData.append('spreadsheet', file);
+    formData.append('gender_decisions', JSON.stringify(genderDecisions));
+
+    return formData;
+}
+
+async function reviewPeopleGenderConflicts(conflicts) {
+    const decisions = {};
+
+    for (const conflict of conflicts) {
+        const keepSpreadsheetGender = await askConfirmation(
+            `A planilha informa ${conflict.provided_gender} para ${conflict.name}, mas o nome sugere ${conflict.suggested_gender}. Deseja manter o sexo informado na planilha?`,
+            'Revisar sexo',
+            'Manter'
+        );
+
+        if (keepSpreadsheetGender) {
+            decisions[conflict.row_number] = conflict.provided_gender;
+            continue;
+        }
+
+        const corrected = prompt(
+            `Informe o sexo correto para ${conflict.name}: MASCULINO ou FEMININO`,
+            conflict.suggested_gender
+        );
+
+        if (corrected === null) {
+            return null;
+        }
+
+        const normalized = normalizeGenderInput(corrected);
+
+        if (normalized === '') {
+            alert('Importacao cancelada: informe MASCULINO ou FEMININO.');
+            return null;
+        }
+
+        decisions[conflict.row_number] = normalized;
+    }
+
+    return decisions;
+}
+
+function normalizeGenderInput(value) {
+    const normalized = String(value || '').trim().toUpperCase();
+
+    if (['M', 'MASC', 'MASCULINO'].includes(normalized)) {
+        return 'MASCULINO';
+    }
+
+    if (['F', 'FEM', 'FEMININO'].includes(normalized)) {
+        return 'FEMININO';
+    }
+
+    return '';
+}
+
+async function uploadPeopleSpreadsheet(formData) {
+    const response = await fetch('/api/people/import', {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${state.token}`,
+        },
+        body: formData,
+    });
+    const text = await response.text();
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return {
+            error: `Resposta inesperada ao importar planilha: ${text.slice(0, 220) || `HTTP ${response.status}`}`,
+        };
+    }
 }
 
 function openCourseModal(course = null) {
@@ -1169,9 +1290,10 @@ function readLogoFile(file) {
     });
 }
 
-function askConfirmation(message, title = 'Confirmar exclusao') {
+function askConfirmation(message, title = 'Confirmar exclusao', confirmLabel = 'Excluir') {
     confirmTitle.textContent = title;
     confirmMessage.textContent = message;
+    confirmActionButton.textContent = confirmLabel;
     confirmActionButton.disabled = false;
 
     return new Promise((resolve) => {
