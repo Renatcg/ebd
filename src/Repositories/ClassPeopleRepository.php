@@ -109,16 +109,21 @@ final class ClassPeopleRepository
             return;
         }
 
-        $sql = Database::driver() === 'pgsql'
-            ? "INSERT INTO {$table} (class_id, person_id) VALUES (:class_id, :person_id) ON CONFLICT (class_id, person_id) DO NOTHING"
-            : "INSERT OR IGNORE INTO {$table} (class_id, person_id) VALUES (:class_id, :person_id)";
-
-        $insert = Database::connection()->prepare($sql);
+        $insert = Database::connection()->prepare(
+            "INSERT INTO {$table} (class_id, person_id)
+             SELECT :class_id, :person_id
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM {$table}
+                 WHERE class_id = :existing_class_id AND person_id = :existing_person_id
+             )"
+        );
 
         foreach ($personIds as $personId) {
             $insert->execute([
                 'class_id' => $classId,
                 'person_id' => $personId,
+                'existing_class_id' => $classId,
+                'existing_person_id' => $personId,
             ]);
         }
     }
