@@ -527,6 +527,25 @@ dialog::backdrop {
     width: auto;
 }
 
+.choice-group {
+    display: grid;
+    gap: 8px;
+}
+
+.choice-group + .choice-group {
+    border-top: 1px solid var(--line);
+    margin-top: 4px;
+    padding-top: 12px;
+}
+
+.choice-group-title {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
 @media (max-width: 760px) {
     .app-shell {
         grid-template-columns: 1fr;

@@ -130,8 +130,8 @@ document.querySelector('#cancelClassButton').addEventListener('click', () => cla
 document.querySelector('#closeClassPeopleModal').addEventListener('click', () => classPeopleModal.close());
 document.querySelector('#cancelClassPeopleButton').addEventListener('click', () => classPeopleModal.close());
 classPeopleSearch.addEventListener('input', () => renderActiveClassPeopleChoices());
-studentChoices.addEventListener('change', syncVisibleClassPeopleChoices);
-teacherChoices.addEventListener('change', syncVisibleClassPeopleChoices);
+studentChoices.addEventListener('change', updateActiveClassPeopleChoices);
+teacherChoices.addEventListener('change', updateActiveClassPeopleChoices);
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
 document.querySelector('#importPeopleButton').addEventListener('click', () => peopleImportFile.click());
 peopleImportFile.addEventListener('change', () => importPeopleFromSpreadsheet());
@@ -288,6 +288,7 @@ classPeopleForm.addEventListener('submit', async (event) => {
     state.classPeople.set(Number(classId), classPeopleIdsFromResponse(response.data));
     state.classPeopleSelection = null;
     classPeopleModal.close();
+    alert(role === 'teachers' ? 'Professores salvos.' : 'Alunos salvos.');
 });
 
 personForm.addEventListener('submit', async (event) => {
@@ -836,20 +837,56 @@ function renderActiveClassPeopleChoices() {
     const name = role;
     const selectedIds = state.classPeopleSelection[role];
     const query = normalizeSearch(classPeopleSearch.value);
-    const people = state.people.filter((person) => normalizeSearch(person.name).includes(query));
+    const selectedIdSet = new Set(selectedIds.map(Number));
+    const selectedPeople = state.people.filter((person) => selectedIdSet.has(Number(person.id)));
+    const people = state.people.filter((person) => (
+        normalizeSearch(person.name).includes(query)
+        && (role !== 'teachers' || !selectedIdSet.has(Number(person.id)))
+    ));
+
+    if (role === 'teachers') {
+        const selectedSection = selectedPeople.length > 0
+            ? `
+                <div class="choice-group">
+                    <p class="choice-group-title">Selecionados</p>
+                    ${selectedPeople.map((person) => personChoiceMarkup(person, name, true)).join('')}
+                </div>
+            `
+            : '';
+        const availableSection = `
+            <div class="choice-group">
+                <p class="choice-group-title">Demais pessoas</p>
+                ${people.length > 0
+                    ? people.map((person) => personChoiceMarkup(person, name, false)).join('')
+                    : '<p class="empty-text">Nenhuma pessoa encontrada.</p>'}
+            </div>
+        `;
+
+        container.innerHTML = selectedSection + availableSection;
+        return;
+    }
 
     container.innerHTML = people
-        .map((person) => `
-            <label>
-                <input type="checkbox" name="${name}" value="${person.id}" ${selectedIds.includes(Number(person.id)) ? 'checked' : ''}>
-                <span>${escapeHtml(person.name)}</span>
-            </label>
-        `)
+        .map((person) => personChoiceMarkup(person, name, selectedIds.includes(Number(person.id))))
         .join('');
 
     if (container.innerHTML === '') {
         container.innerHTML = '<p class="empty-text">Nenhuma pessoa encontrada.</p>';
     }
+}
+
+function personChoiceMarkup(person, name, checked) {
+    return `
+        <label>
+            <input type="checkbox" name="${name}" value="${person.id}" ${checked ? 'checked' : ''}>
+            <span>${escapeHtml(person.name)}</span>
+        </label>
+    `;
+}
+
+function updateActiveClassPeopleChoices() {
+    syncVisibleClassPeopleChoices();
+    renderActiveClassPeopleChoices();
 }
 
 function syncVisibleClassPeopleChoices() {
