@@ -12,6 +12,7 @@ const state = {
     reports: [],
     storedOpinions: [],
     classPeople: new Map(),
+    classPeopleSelection: null,
     pedagogicoStudents: [],
     selectedStudent: null,
     selectedStudentClasses: [],
@@ -40,6 +41,7 @@ const classPeopleForm = document.querySelector('#classPeopleForm');
 const classPeopleModalTitle = document.querySelector('#classPeopleModalTitle');
 const studentChoices = document.querySelector('#studentChoices');
 const teacherChoices = document.querySelector('#teacherChoices');
+const classPeopleSearch = document.querySelector('#classPeopleSearch');
 const personRows = document.querySelector('#personRows');
 const emptyPeople = document.querySelector('#emptyPeople');
 const personModal = document.querySelector('#personModal');
@@ -127,6 +129,9 @@ document.querySelector('#closeClassModal').addEventListener('click', () => class
 document.querySelector('#cancelClassButton').addEventListener('click', () => classModal.close());
 document.querySelector('#closeClassPeopleModal').addEventListener('click', () => classPeopleModal.close());
 document.querySelector('#cancelClassPeopleButton').addEventListener('click', () => classPeopleModal.close());
+classPeopleSearch.addEventListener('input', () => renderActiveClassPeopleChoices());
+studentChoices.addEventListener('change', syncVisibleClassPeopleChoices);
+teacherChoices.addEventListener('change', syncVisibleClassPeopleChoices);
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
 document.querySelector('#importPeopleButton').addEventListener('click', () => peopleImportFile.click());
 peopleImportFile.addEventListener('change', () => importPeopleFromSpreadsheet());
@@ -259,11 +264,14 @@ classPeopleForm.addEventListener('submit', async (event) => {
     event.preventDefault();
 
     const classId = classPeopleForm.elements.class_id.value;
+    const role = classPeopleForm.elements.people_role.value;
+    syncVisibleClassPeopleChoices();
+    const current = state.classPeopleSelection || { students: [], teachers: [] };
     const response = await api(`/api/classes/${classId}/people`, {
         method: 'PUT',
         body: {
-            students: checkedValues(studentChoices),
-            teachers: checkedValues(teacherChoices),
+            students: current.students,
+            teachers: current.teachers,
         },
     });
 
@@ -273,6 +281,7 @@ classPeopleForm.addEventListener('submit', async (event) => {
     }
 
     state.classPeople.delete(Number(classId));
+    state.classPeopleSelection = null;
     classPeopleModal.close();
 });
 
@@ -521,14 +530,16 @@ function renderClasses() {
             <span>${escapeHtml(item.course_name)}</span>
             <span>${Number(item.active) === 1 ? 'Ativa' : 'Inativa'}</span>
             <span class="actions">
-                <button class="ghost-icon" title="Alunos e professores" aria-label="Alunos e professores">👥</button>
+                <button class="ghost-icon" title="Alunos" aria-label="Alunos">A</button>
+                <button class="ghost-icon" title="Professores" aria-label="Professores">P</button>
                 <button class="ghost-icon" title="Editar" aria-label="Editar">✎</button>
                 <button class="ghost-icon danger" title="Excluir" aria-label="Excluir">×</button>
             </span>
         `;
 
-        const [peopleButton, editButton, deleteButton] = row.querySelectorAll('button');
-        peopleButton.addEventListener('click', () => openClassPeopleModal(item));
+        const [studentsButton, teachersButton, editButton, deleteButton] = row.querySelectorAll('button');
+        studentsButton.addEventListener('click', () => openClassPeopleModal(item, 'students'));
+        teachersButton.addEventListener('click', () => openClassPeopleModal(item, 'teachers'));
         editButton.addEventListener('click', () => openClassModal(item));
         deleteButton.addEventListener('click', () => deleteClass(item));
         classRows.appendChild(row);
@@ -744,7 +755,7 @@ function openPersonModal(person = null) {
     personModal.showModal();
 }
 
-async function openClassPeopleModal(item) {
+async function openClassPeopleModal(item, role) {
     if (state.people.length === 0) {
         alert('Cadastre pessoas antes de associar alunos e professores.');
         return;
@@ -762,14 +773,34 @@ async function openClassPeopleModal(item) {
 
     classPeopleForm.reset();
     classPeopleForm.elements.class_id.value = item.id;
-    classPeopleModalTitle.textContent = item.name;
-    renderPersonChoices(studentChoices, 'students', studentIds);
-    renderPersonChoices(teacherChoices, 'teachers', teacherIds);
+    classPeopleForm.elements.people_role.value = role;
+    classPeopleModalTitle.textContent = `${role === 'students' ? 'Alunos' : 'Professores'} - ${item.name}`;
+    classPeopleSearch.value = '';
+    state.classPeopleSelection = {
+        classId: Number(item.id),
+        role,
+        students: studentIds,
+        teachers: teacherIds,
+    };
+    studentChoices.classList.toggle('hidden', role !== 'students');
+    teacherChoices.classList.toggle('hidden', role !== 'teachers');
+    renderActiveClassPeopleChoices();
     classPeopleModal.showModal();
 }
 
-function renderPersonChoices(container, name, selectedIds) {
-    container.innerHTML = state.people
+function renderActiveClassPeopleChoices() {
+    if (!state.classPeopleSelection) {
+        return;
+    }
+
+    const role = state.classPeopleSelection.role;
+    const container = role === 'teachers' ? teacherChoices : studentChoices;
+    const name = role;
+    const selectedIds = state.classPeopleSelection[role];
+    const query = normalizeSearch(classPeopleSearch.value);
+    const people = state.people.filter((person) => normalizeSearch(person.name).includes(query));
+
+    container.innerHTML = people
         .map((person) => `
             <label>
                 <input type="checkbox" name="${name}" value="${person.id}" ${selectedIds.includes(Number(person.id)) ? 'checked' : ''}>
@@ -777,6 +808,32 @@ function renderPersonChoices(container, name, selectedIds) {
             </label>
         `)
         .join('');
+
+    if (container.innerHTML === '') {
+        container.innerHTML = '<p class="empty-text">Nenhuma pessoa encontrada.</p>';
+    }
+}
+
+function syncVisibleClassPeopleChoices() {
+    if (!state.classPeopleSelection) {
+        return;
+    }
+
+    const role = state.classPeopleSelection.role;
+    const container = role === 'teachers' ? teacherChoices : studentChoices;
+    const visibleIds = Array.from(container.querySelectorAll('input[type="checkbox"]')).map((input) => Number(input.value));
+    const checkedIds = checkedValues(container);
+    const hiddenSelectedIds = state.classPeopleSelection[role].filter((id) => !visibleIds.includes(Number(id)));
+
+    state.classPeopleSelection[role] = Array.from(new Set([...hiddenSelectedIds, ...checkedIds]));
+}
+
+function normalizeSearch(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
 }
 
 function checkedValues(container) {

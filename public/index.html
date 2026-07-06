@@ -441,16 +441,13 @@
                 <button type="button" class="ghost-icon" id="closeClassPeopleModal" aria-label="Fechar">x</button>
             </header>
             <input type="hidden" name="class_id">
-            <div class="dual-list">
-                <section>
-                    <h3>Alunos</h3>
-                    <div id="studentChoices" class="choice-list"></div>
-                </section>
-                <section>
-                    <h3>Professores</h3>
-                    <div id="teacherChoices" class="choice-list"></div>
-                </section>
-            </div>
+            <input type="hidden" name="people_role">
+            <label>
+                Pesquisar por nome
+                <input id="classPeopleSearch" type="search" autocomplete="off" placeholder="Digite para filtrar">
+            </label>
+            <div id="studentChoices" class="choice-list"></div>
+            <div id="teacherChoices" class="choice-list hidden"></div>
             <footer class="modal-actions">
                 <button type="button" class="secondary" id="cancelClassPeopleButton">Cancelar</button>
                 <button type="submit">Salvar</button>

@@ -194,7 +194,7 @@ p {
 }
 
 .class-row {
-    grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 1.8fr) 120px 160px;
+    grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 1.8fr) 120px 184px;
 }
 
 .person-row {
@@ -450,7 +450,7 @@ dialog {
 }
 
 #classPeopleModal {
-    width: min(900px, calc(100% - 32px));
+    width: min(640px, calc(100% - 32px));
 }
 
 #lessonModal {
