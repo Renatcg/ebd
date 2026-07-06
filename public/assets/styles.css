@@ -186,6 +186,28 @@ p {
     padding: 14px 16px;
 }
 
+.app-toast {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    z-index: 1000;
+    border: 1px solid var(--ink);
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 800;
+    opacity: 0;
+    padding: 12px 14px;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.app-toast.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .row {
     display: grid;
     grid-template-columns: minmax(160px, 1.1fr) minmax(220px, 2fr) 120px 112px;

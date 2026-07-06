@@ -252,6 +252,7 @@ courseForm.addEventListener('submit', async (event) => {
     }
 
     courseModal.close();
+    notify('Curso salvo.');
     await loadCourses();
 });
 
@@ -278,6 +279,7 @@ classForm.addEventListener('submit', async (event) => {
     }
 
     classModal.close();
+    notify('Classe salva.');
     await loadClasses();
 });
 
@@ -299,11 +301,6 @@ classPeopleForm.addEventListener('submit', async (event) => {
         return;
     }
 
-    const previous = state.classPeople.get(Number(classId)) || emptyClassPeople();
-    state.classPeople.set(Number(classId), classPeopleFromSelection(current));
-    state.classPeopleSelection = null;
-    classPeopleModal.close();
-
     const response = await api(`/api/classes/${classId}/people/${role}`, {
         method: 'PUT',
         body: {
@@ -312,13 +309,14 @@ classPeopleForm.addEventListener('submit', async (event) => {
     });
 
     if (response.error) {
-        state.classPeople.set(Number(classId), previous);
         alert(response.error);
         return;
     }
 
     state.classPeople.set(Number(classId), classPeopleIdsFromResponse(response.data));
-    alert(`${CLASS_ROLE_CONFIG[role].label} salvos.`);
+    state.classPeopleSelection = null;
+    classPeopleModal.close();
+    notify(`${CLASS_ROLE_CONFIG[role].label} salvos.`);
 });
 
 personForm.addEventListener('submit', async (event) => {
@@ -348,6 +346,7 @@ personForm.addEventListener('submit', async (event) => {
     }
 
     personModal.close();
+    notify('Pessoa salva.');
     await loadPeople();
 });
 
@@ -359,6 +358,7 @@ lessonForm.addEventListener('submit', async (event) => {
     }
 
     const form = new FormData(lessonForm);
+
     const response = await api('/api/secretaria/lesson', {
         method: 'PUT',
         body: {
@@ -377,10 +377,9 @@ lessonForm.addEventListener('submit', async (event) => {
     }
 
     state.lessonWorkArea = response.data;
-    renderLessonWorkArea(response.data);
-    await loadLessonMarkers();
     lessonModal.close();
-    alert('Chamada salva.');
+    notify('Chamada salva.');
+    await loadLessonMarkers();
 });
 
 reportForm.addEventListener('submit', async (event) => {
@@ -388,6 +387,7 @@ reportForm.addEventListener('submit', async (event) => {
 
     const form = new FormData(reportForm);
     const id = form.get('id');
+
     const response = await api(id ? `/api/pedagogico/reports/${id}` : '/api/pedagogico/reports', {
         method: id ? 'PUT' : 'POST',
         body: {
@@ -405,6 +405,7 @@ reportForm.addEventListener('submit', async (event) => {
     }
 
     reportModal.close();
+    notify('Relatorio salvo.');
     await loadReports();
 });
 
@@ -1390,6 +1391,63 @@ function printOpinion() {
     printWindow.document.write(`<pre style="font-family: Arial, sans-serif; white-space: pre-wrap;">${escapeHtml(opinionText.value)}</pre>`);
     printWindow.document.close();
     printWindow.print();
+}
+
+function upsertById(list, item, compareFn) {
+    const id = Number(item.id);
+    const index = list.findIndex((entry) => Number(entry.id) === id);
+
+    if (index >= 0) {
+        list.splice(index, 1, item);
+    } else {
+        list.push(item);
+    }
+
+    if (compareFn) {
+        list.sort(compareFn);
+    }
+}
+
+function compareByName(left, right) {
+    return String(left.name || '').localeCompare(String(right.name || ''), 'pt-BR');
+}
+
+function compareClasses(left, right) {
+    const courseCompare = String(left.course_name || '').localeCompare(String(right.course_name || ''), 'pt-BR');
+
+    if (courseCompare !== 0) {
+        return courseCompare;
+    }
+
+    return compareByName(left, right);
+}
+
+function compareReports(left, right) {
+    const dateCompare = String(right.report_date || '').localeCompare(String(left.report_date || ''));
+
+    if (dateCompare !== 0) {
+        return dateCompare;
+    }
+
+    return Number(right.id) - Number(left.id);
+}
+
+function notify(message) {
+    let toast = document.querySelector('#appToast');
+
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'appToast';
+        toast.className = 'app-toast';
+        document.body.appendChild(toast);
+    }
+
+    window.clearTimeout(toast.hideTimer);
+    toast.textContent = message;
+    toast.classList.add('visible');
+    toast.hideTimer = window.setTimeout(() => {
+        toast.classList.remove('visible');
+    }, 1800);
 }
 
 async function loadReports() {
