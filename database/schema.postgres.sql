@@ -71,16 +71,6 @@ CREATE TABLE IF NOT EXISTS class_ambassadors (
     UNIQUE (class_id, person_id)
 );
 
-CREATE TABLE IF NOT EXISTS class_directors (
-    id SERIAL PRIMARY KEY,
-    class_id INTEGER NOT NULL,
-    person_id INTEGER NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
-    FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE,
-    UNIQUE (class_id, person_id)
-);
-
 CREATE TABLE IF NOT EXISTS lessons (
     id SERIAL PRIMARY KEY,
     class_id INTEGER NOT NULL,
@@ -148,7 +138,6 @@ CREATE INDEX IF NOT EXISTS idx_people_name ON people(name);
 CREATE INDEX IF NOT EXISTS idx_class_students_person ON class_students(person_id);
 CREATE INDEX IF NOT EXISTS idx_class_teachers_person ON class_teachers(person_id);
 CREATE INDEX IF NOT EXISTS idx_class_ambassadors_person ON class_ambassadors(person_id);
-CREATE INDEX IF NOT EXISTS idx_class_directors_person ON class_directors(person_id);
 CREATE INDEX IF NOT EXISTS idx_lessons_class_date ON lessons(class_id, lesson_date);
 CREATE INDEX IF NOT EXISTS idx_attendance_lesson ON attendance(lesson_id);
 CREATE INDEX IF NOT EXISTS idx_reports_student ON student_reports(student_person_id);

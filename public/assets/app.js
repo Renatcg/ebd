@@ -13,9 +13,8 @@ const CLASS_ROLE_CONFIG = {
     students: { label: 'Alunos', singular: 'Aluno', button: 'A', container: '#studentChoices' },
     teachers: { label: 'Professores', singular: 'Professor', button: 'P', container: '#teacherChoices' },
     ambassadors: { label: 'Embaixadores', singular: 'Embaixador', button: 'E', container: '#ambassadorChoices' },
-    directors: { label: 'Diretores', singular: 'Diretor', button: 'D', container: '#directorChoices' },
 };
-const STAFF_CLASS_ROLES = ['teachers', 'ambassadors', 'directors'];
+const STAFF_CLASS_ROLES = ['teachers'];
 
 const state = {
     token: localStorage.getItem('ebd.token'),
@@ -59,7 +58,6 @@ const classPeopleModalTitle = document.querySelector('#classPeopleModalTitle');
 const studentChoices = document.querySelector('#studentChoices');
 const teacherChoices = document.querySelector('#teacherChoices');
 const ambassadorChoices = document.querySelector('#ambassadorChoices');
-const directorChoices = document.querySelector('#directorChoices');
 const classPeopleSearch = document.querySelector('#classPeopleSearch');
 const personRows = document.querySelector('#personRows');
 const emptyPeople = document.querySelector('#emptyPeople');
@@ -153,7 +151,6 @@ classPeopleSearch.addEventListener('input', updateActiveClassPeopleChoices);
 studentChoices.addEventListener('change', updateActiveClassPeopleChoices);
 teacherChoices.addEventListener('change', updateActiveClassPeopleChoices);
 ambassadorChoices.addEventListener('change', updateActiveClassPeopleChoices);
-directorChoices.addEventListener('change', updateActiveClassPeopleChoices);
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
 document.querySelector('#importPeopleButton').addEventListener('click', () => peopleImportFile.click());
 peopleImportFile.addEventListener('change', () => importPeopleFromSpreadsheet());
@@ -590,17 +587,15 @@ function renderClasses() {
                 <button class="ghost-icon" title="Alunos" aria-label="Alunos">A</button>
                 <button class="ghost-icon" title="Professores" aria-label="Professores">P</button>
                 <button class="ghost-icon" title="Embaixadores" aria-label="Embaixadores">E</button>
-                <button class="ghost-icon" title="Diretores" aria-label="Diretores">D</button>
                 <button class="ghost-icon" title="Editar" aria-label="Editar">✎</button>
                 <button class="ghost-icon danger" title="Excluir" aria-label="Excluir">×</button>
             </span>
         `;
 
-        const [studentsButton, teachersButton, ambassadorsButton, directorsButton, editButton, deleteButton] = row.querySelectorAll('button');
+        const [studentsButton, teachersButton, ambassadorsButton, editButton, deleteButton] = row.querySelectorAll('button');
         studentsButton.addEventListener('click', () => openClassPeopleModal(item, 'students'));
         teachersButton.addEventListener('click', () => openClassPeopleModal(item, 'teachers'));
         ambassadorsButton.addEventListener('click', () => openClassPeopleModal(item, 'ambassadors'));
-        directorsButton.addEventListener('click', () => openClassPeopleModal(item, 'directors'));
         editButton.addEventListener('click', () => openClassModal(item));
         deleteButton.addEventListener('click', () => deleteClass(item));
         classRows.appendChild(row);
@@ -840,7 +835,6 @@ async function openClassPeopleModal(item, role) {
         students: [...current.students],
         teachers: [...current.teachers],
         ambassadors: [...current.ambassadors],
-        directors: [...current.directors],
         courseId: Number(item.course_id),
         courseStaffIds,
     };
@@ -870,7 +864,6 @@ async function refreshClassPeopleSelection(classId) {
         state.classPeopleSelection.students = [...ids.students];
         state.classPeopleSelection.teachers = [...ids.teachers];
         state.classPeopleSelection.ambassadors = [...ids.ambassadors];
-        state.classPeopleSelection.directors = [...ids.directors];
         state.classPeopleSelection.courseStaffIds = staffIdsForCourse(state.classPeopleSelection.courseId);
         renderActiveClassPeopleChoices();
     }
@@ -888,7 +881,6 @@ function classPeopleIdsFromResponse(data) {
         students: (data.students || []).map((person) => Number(person.id ?? person)),
         teachers: (data.teachers || []).map((person) => Number(person.id ?? person)),
         ambassadors: (data.ambassadors || []).map((person) => Number(person.id ?? person)),
-        directors: (data.directors || []).map((person) => Number(person.id ?? person)),
     };
 }
 
@@ -1041,7 +1033,6 @@ function emptyClassPeople() {
         students: [],
         teachers: [],
         ambassadors: [],
-        directors: [],
     };
 }
 

@@ -194,7 +194,7 @@ p {
 }
 
 .class-row {
-    grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 1.8fr) 120px 248px;
+    grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 1.8fr) 120px 216px;
 }
 
 .person-row {

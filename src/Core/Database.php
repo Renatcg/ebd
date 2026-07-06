@@ -93,7 +93,6 @@ final class Database
     {
         self::migrateUsers($connection);
         self::createRoleTable($connection, 'class_ambassadors');
-        self::createRoleTable($connection, 'class_directors');
     }
 
     private static function migrateUsers(PDO $connection): void

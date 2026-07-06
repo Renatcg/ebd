@@ -8,10 +8,9 @@ final class ClassPeopleRepository
         'students' => 'class_students',
         'teachers' => 'class_teachers',
         'ambassadors' => 'class_ambassadors',
-        'directors' => 'class_directors',
     ];
 
-    private const STAFF_ROLES = ['teachers', 'ambassadors', 'directors'];
+    private const COURSE_RESTRICTED_ROLES = ['students', 'teachers'];
 
     public function get(int $classId): array
     {
@@ -94,7 +93,9 @@ final class ClassPeopleRepository
         $newIds = array_values(array_diff($personIds, $existingIds));
 
         $this->validatePeopleExist($newIds);
-        $this->validateNoCourseConflict($classId, (int) $class['course_id'], $newIds);
+        if (in_array($role, self::COURSE_RESTRICTED_ROLES, true)) {
+            $this->validateNoCourseConflict($classId, (int) $class['course_id'], $newIds);
+        }
 
         if (!$this->sameIds($existingIds, $personIds)) {
             $this->syncTableChanges(self::ROLE_TABLES[$role], $classId, $existingIds, $personIds);
@@ -232,7 +233,6 @@ final class ClassPeopleRepository
             'students' => [],
             'teachers' => [],
             'ambassadors' => [],
-            'directors' => [],
         ];
     }
 
@@ -303,15 +303,11 @@ final class ClassPeopleRepository
                   FROM classes
                   LEFT JOIN class_students ON class_students.class_id = classes.id
                   LEFT JOIN class_teachers ON class_teachers.class_id = classes.id
-                  LEFT JOIN class_ambassadors ON class_ambassadors.class_id = classes.id
-                  LEFT JOIN class_directors ON class_directors.class_id = classes.id
                   WHERE classes.course_id = ?
                     AND classes.id <> ?
                     AND (
                         class_students.person_id = people.id
                         OR class_teachers.person_id = people.id
-                        OR class_ambassadors.person_id = people.id
-                        OR class_directors.person_id = people.id
                     )
               )
             ORDER BY people.name

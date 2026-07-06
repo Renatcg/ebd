@@ -231,7 +231,7 @@ function handleApi(string $path): void
         }
     }
 
-    if (preg_match('#^/api/classes/(\d+)/people/(students|teachers|ambassadors|directors)$#', $path, $matches) && $method === 'PUT') {
+    if (preg_match('#^/api/classes/(\d+)/people/(students|teachers|ambassadors)$#', $path, $matches) && $method === 'PUT') {
         Auth::requireRole(['admin']);
         $id = (int) $matches[1];
         $role = (string) $matches[2];
