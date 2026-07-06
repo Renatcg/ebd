@@ -7,6 +7,7 @@ require_once dirname(__DIR__) . '/src/Core/Database.php';
 require_once dirname(__DIR__) . '/src/Core/Response.php';
 require_once dirname(__DIR__) . '/src/Auth/Jwt.php';
 require_once dirname(__DIR__) . '/src/Auth/Auth.php';
+require_once dirname(__DIR__) . '/src/Services/NameFormatter.php';
 require_once dirname(__DIR__) . '/src/Repositories/CourseRepository.php';
 require_once dirname(__DIR__) . '/src/Repositories/ClassRepository.php';
 require_once dirname(__DIR__) . '/src/Repositories/PersonRepository.php';
@@ -48,6 +49,30 @@ function handleApi(string $path): void
 
     if ($path === '/api/me' && $method === 'GET') {
         Response::json(['user' => Auth::requireUser()]);
+    }
+
+    if ($path === '/api/bootstrap' && $method === 'GET') {
+        $user = Auth::requireUser();
+        $month = trim((string) ($_GET['month'] ?? date('Y-m')));
+        $settings = new SettingsRepository();
+
+        Response::json([
+            'user' => $user,
+            'data' => [
+                'courses' => (new CourseRepository())->all(),
+                'classes' => (new ClassRepository())->all(),
+                'people' => (new PersonRepository())->all(),
+                'lesson_markers' => in_array($user['role'], ['admin', 'secretaria'], true)
+                    ? (new LessonRepository())->markersForMonth($month)
+                    : [],
+                'pedagogico_students' => in_array($user['role'], ['admin', 'pedagogico', 'professor'], true)
+                    ? (new StudentReportRepository())->students()
+                    : [],
+                'settings' => $user['role'] === 'admin'
+                    ? $settings->publicSettings()
+                    : $settings->branding(),
+            ],
+        ]);
     }
 
     if ($path === '/api/branding' && $method === 'GET') {
@@ -323,6 +348,11 @@ function handleApi(string $path): void
         } catch (Throwable) {
             Response::error('Nao foi possivel concluir a importacao. Verifique a planilha e tente novamente.', 500);
         }
+    }
+
+    if ($path === '/api/people/normalize-names' && $method === 'POST') {
+        Auth::requireRole(['admin']);
+        Response::json(['updated' => (new PersonRepository())->normalizeNames()]);
     }
 
     if (preg_match('#^/api/people/(\d+)$#', $path, $matches)) {

@@ -1,3 +1,5 @@
+const BRANDING_CACHE_KEY = 'ebd.branding.logo';
+
 const state = {
     token: localStorage.getItem('ebd.token'),
     user: null,
@@ -359,36 +361,72 @@ reportForm.addEventListener('submit', async (event) => {
 });
 
 async function bootstrap() {
-    await loadBranding();
+    applyCachedBranding();
 
     if (!state.token) {
+        refreshBranding();
         showLogin();
         return;
     }
 
-    const response = await api('/api/me');
+    calendarMonth.value = currentMonthValue();
+    const response = await loadInitialData();
 
     if (response.error) {
         localStorage.removeItem('ebd.token');
+        refreshBranding();
         showLogin();
         return;
     }
 
-    state.user = response.user;
-    await enterApp();
+    enterApp(response);
 }
 
-async function enterApp() {
+async function enterApp(initialData = null) {
     loginView.classList.add('hidden');
     appView.classList.remove('hidden');
+
+    calendarMonth.value = calendarMonth.value || currentMonthValue();
+
+    const response = initialData || await loadInitialData();
+
+    if (response.error) {
+        alert(response.error);
+        return;
+    }
+
+    applyInitialData(response);
+    queueExistingNameNormalization();
+}
+
+async function loadInitialData() {
+    const month = calendarMonth.value || currentMonthValue();
+
+    return api(`/api/bootstrap?${new URLSearchParams({ month }).toString()}`);
+}
+
+function applyInitialData(response) {
+    const data = response.data || {};
+
+    state.user = response.user || state.user;
     userLabel.textContent = `${state.user.name} - ${state.user.role}`;
-    await loadCourses();
-    await loadClasses();
-    await loadPeople();
-    calendarMonth.value = currentMonthValue();
-    await loadLessonMarkers();
-    await loadPedagogicoStudents();
-    await loadSettings();
+    state.courses = data.courses || [];
+    state.classes = data.classes || [];
+    state.people = data.people || [];
+    state.lessonMarkers = new Set((data.lesson_markers || []).map((item) => markerKey(item.lesson_date, item.class_id)));
+    state.pedagogicoStudents = data.pedagogico_students || [];
+
+    renderCourses();
+    renderClasses();
+    renderPeople();
+    renderSecretariaCalendar();
+    renderPedagogicoStudents();
+
+    if (data.settings?.openai_model !== undefined) {
+        renderSettings(data.settings);
+    } else if (data.settings?.app_logo_data !== undefined) {
+        applyBranding(data.settings.app_logo_data || '');
+    }
 }
 
 function showLogin() {
@@ -397,6 +435,18 @@ function showLogin() {
 }
 
 async function loadBranding() {
+    const response = await api('/api/branding', { public: true });
+
+    if (!response.error) {
+        applyBranding(response.data.app_logo_data || '');
+    }
+}
+
+function applyCachedBranding() {
+    applyBranding(localStorage.getItem(BRANDING_CACHE_KEY) || '');
+}
+
+async function refreshBranding() {
     const response = await api('/api/branding', { public: true });
 
     if (!response.error) {
@@ -1272,6 +1322,8 @@ function renderSettings(settings) {
 }
 
 function applyBranding(logoData) {
+    localStorage.setItem(BRANDING_CACHE_KEY, logoData || '');
+
     document.querySelectorAll('.app-logo').forEach((image) => {
         image.src = logoData || '';
         image.classList.toggle('hidden', logoData === '');
@@ -1280,6 +1332,23 @@ function applyBranding(logoData) {
     document.querySelectorAll('.brand-fallback').forEach((fallback) => {
         fallback.classList.toggle('hidden', logoData !== '');
     });
+}
+
+function queueExistingNameNormalization() {
+    if (state.user?.role !== 'admin') {
+        return;
+    }
+
+    window.setTimeout(async () => {
+        const response = await api('/api/people/normalize-names', { method: 'POST' });
+
+        if (!response.error && Number(response.updated) > 0) {
+            await Promise.all([
+                loadPeople(),
+                loadPedagogicoStudents(),
+            ]);
+        }
+    }, 800);
 }
 
 function renderLogoPreview(logoData) {

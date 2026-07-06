@@ -81,10 +81,37 @@ final class PersonRepository
         return $stmt->rowCount() > 0;
     }
 
+    public function normalizeNames(): int
+    {
+        $people = Database::connection()
+            ->query('SELECT id, name FROM people')
+            ->fetchAll();
+        $stmt = Database::connection()->prepare(
+            'UPDATE people SET name = :name, updated_at = CURRENT_TIMESTAMP WHERE id = :id'
+        );
+        $updated = 0;
+
+        foreach ($people as $person) {
+            $normalized = NameFormatter::personName($person['name'] ?? '');
+
+            if ($normalized === '' || $normalized === (string) ($person['name'] ?? '')) {
+                continue;
+            }
+
+            $stmt->execute([
+                'id' => (int) $person['id'],
+                'name' => $normalized,
+            ]);
+            $updated++;
+        }
+
+        return $updated;
+    }
+
     private function payload(array $data): array
     {
         return [
-            'name' => trim($data['name']),
+            'name' => NameFormatter::personName($data['name']),
             'email' => $this->nullableText($data['email'] ?? null),
             'phone' => $this->nullableText($data['phone'] ?? null),
             'birth_date' => $this->nullableText($data['birth_date'] ?? null),

@@ -122,6 +122,11 @@ CREATE TABLE IF NOT EXISTS student_opinions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_classes_course_id ON classes(course_id);
+CREATE INDEX IF NOT EXISTS idx_classes_name ON classes(name);
+CREATE INDEX IF NOT EXISTS idx_people_name ON people(name);
+CREATE INDEX IF NOT EXISTS idx_class_students_person ON class_students(person_id);
+CREATE INDEX IF NOT EXISTS idx_class_teachers_person ON class_teachers(person_id);
 CREATE INDEX IF NOT EXISTS idx_lessons_class_date ON lessons(class_id, lesson_date);
+CREATE INDEX IF NOT EXISTS idx_attendance_lesson ON attendance(lesson_id);
 CREATE INDEX IF NOT EXISTS idx_reports_student ON student_reports(student_person_id);
 CREATE INDEX IF NOT EXISTS idx_opinions_student ON student_opinions(student_person_id);

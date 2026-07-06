@@ -180,7 +180,7 @@ final class PeopleImportService
 
     private function personFromRow(array $row): ?array
     {
-        $name = $this->cleanText($row['name'] ?? '');
+        $name = NameFormatter::personName($row['name'] ?? '');
 
         if ($name === '' || mb_strtolower($name) === 'rotulos de linha') {
             return null;
