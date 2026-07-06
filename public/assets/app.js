@@ -267,6 +267,12 @@ classPeopleForm.addEventListener('submit', async (event) => {
     const role = classPeopleForm.elements.people_role.value;
     syncVisibleClassPeopleChoices();
     const current = state.classPeopleSelection || { students: [], teachers: [] };
+
+    if (hasClassRoleOverlap(current.students, current.teachers)) {
+        alert('A mesma pessoa nao pode ser aluno e professor na mesma classe.');
+        return;
+    }
+
     const response = await api(`/api/classes/${classId}/people`, {
         method: 'PUT',
         body: {
@@ -859,6 +865,12 @@ function syncVisibleClassPeopleChoices() {
     const hiddenSelectedIds = state.classPeopleSelection[role].filter((id) => !visibleIds.includes(Number(id)));
 
     state.classPeopleSelection[role] = Array.from(new Set([...hiddenSelectedIds, ...checkedIds]));
+}
+
+function hasClassRoleOverlap(studentIds, teacherIds) {
+    const teachers = new Set(teacherIds.map(Number));
+
+    return studentIds.some((id) => teachers.has(Number(id)));
 }
 
 function normalizeSearch(value) {
