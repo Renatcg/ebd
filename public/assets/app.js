@@ -61,6 +61,7 @@ const ambassadorChoices = document.querySelector('#ambassadorChoices');
 const classPeopleSearch = document.querySelector('#classPeopleSearch');
 const personRows = document.querySelector('#personRows');
 const emptyPeople = document.querySelector('#emptyPeople');
+const peopleSearch = document.querySelector('#peopleSearch');
 const personModal = document.querySelector('#personModal');
 const personForm = document.querySelector('#personForm');
 const personModalTitle = document.querySelector('#personModalTitle');
@@ -154,6 +155,7 @@ ambassadorChoices.addEventListener('change', updateActiveClassPeopleChoices);
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
 document.querySelector('#importPeopleButton').addEventListener('click', () => peopleImportFile.click());
 peopleImportFile.addEventListener('change', () => importPeopleFromSpreadsheet());
+peopleSearch.addEventListener('input', () => renderPeople());
 document.querySelector('#closePersonModal').addEventListener('click', () => personModal.close());
 document.querySelector('#cancelPersonButton').addEventListener('click', () => personModal.close());
 document.querySelector('#previousMonthButton').addEventListener('click', () => changeCalendarMonth(-1));
@@ -616,9 +618,14 @@ async function loadPeople() {
 
 function renderPeople() {
     personRows.innerHTML = '';
-    emptyPeople.classList.toggle('hidden', state.people.length > 0);
+    const query = normalizeSearch(peopleSearch.value);
+    const people = state.people.filter((person) => normalizeSearch(person.name).includes(query));
+    emptyPeople.textContent = state.people.length === 0
+        ? 'Nenhuma pessoa cadastrada.'
+        : 'Nenhuma pessoa encontrada.';
+    emptyPeople.classList.toggle('hidden', people.length > 0);
 
-    state.people.forEach((person) => {
+    people.forEach((person) => {
         const row = document.createElement('div');
         row.className = 'row person-row';
         row.innerHTML = `
