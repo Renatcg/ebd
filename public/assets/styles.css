@@ -552,7 +552,8 @@ dialog::backdrop {
 }
 
 .selected-choice-panel {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 8px;
     max-height: 300px;
     overflow: auto;
@@ -568,10 +569,17 @@ dialog::backdrop {
     gap: 10px;
     min-height: 32px;
     min-width: 0;
+    color: var(--ink);
     white-space: nowrap;
 }
 
+.selected-choice-item input {
+    flex: 0 0 auto;
+    width: auto;
+}
+
 .selected-choice-item span {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
