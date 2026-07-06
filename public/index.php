@@ -231,6 +231,24 @@ function handleApi(string $path): void
         }
     }
 
+    if (preg_match('#^/api/classes/(\d+)/people/(students|teachers)$#', $path, $matches) && $method === 'PUT') {
+        Auth::requireRole(['admin']);
+        $id = (int) $matches[1];
+        $role = (string) $matches[2];
+
+        try {
+            Response::json([
+                'data' => (new ClassPeopleRepository())->syncRole(
+                    $id,
+                    $role,
+                    is_array($input['people'] ?? null) ? $input['people'] : []
+                ),
+            ]);
+        } catch (Throwable $exception) {
+            Response::error('Nao foi possivel salvar os vinculos desta classe: ' . $exception->getMessage(), 500);
+        }
+    }
+
     if ($path === '/api/secretaria/month' && $method === 'GET') {
         Auth::requireRole(['admin', 'secretaria']);
         $month = trim((string) ($_GET['month'] ?? ''));

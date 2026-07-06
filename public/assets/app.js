@@ -273,11 +273,10 @@ classPeopleForm.addEventListener('submit', async (event) => {
         return;
     }
 
-    const response = await api(`/api/classes/${classId}/people`, {
+    const response = await api(`/api/classes/${classId}/people/${role}`, {
         method: 'PUT',
         body: {
-            students: current.students,
-            teachers: current.teachers,
+            people: current[role],
         },
     });
 

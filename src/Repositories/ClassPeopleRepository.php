@@ -67,6 +67,23 @@ final class ClassPeopleRepository
         return $this->get($classId);
     }
 
+    public function syncRole(int $classId, string $role, array $personIds): array
+    {
+        $current = $this->get($classId);
+        $studentIds = array_map(fn (array $person): int => (int) $person['id'], $current['students']);
+        $teacherIds = array_map(fn (array $person): int => (int) $person['id'], $current['teachers']);
+
+        if ($role === 'students') {
+            $studentIds = $personIds;
+        } elseif ($role === 'teachers') {
+            $teacherIds = $personIds;
+        } else {
+            Response::error('Tipo de vinculo invalido.', 422);
+        }
+
+        return $this->sync($classId, $studentIds, $teacherIds);
+    }
+
     private function peopleFor(int $classId, string $table): array
     {
         $stmt = Database::connection()->prepare(
