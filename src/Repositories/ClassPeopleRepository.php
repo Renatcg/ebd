@@ -53,11 +53,14 @@ final class ClassPeopleRepository
         $pdo->beginTransaction();
 
         try {
-            $this->replace('class_students', $classId, $studentIds);
-            $this->replace('class_teachers', $classId, $teacherIds);
+            $this->syncTable('class_students', $classId, $studentIds);
+            $this->syncTable('class_teachers', $classId, $teacherIds);
             $pdo->commit();
         } catch (Throwable $exception) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
             throw $exception;
         }
 
@@ -78,14 +81,39 @@ final class ClassPeopleRepository
         return $stmt->fetchAll();
     }
 
-    private function replace(string $table, int $classId, array $personIds): void
+    private function syncTable(string $table, int $classId, array $personIds): void
     {
-        $delete = Database::connection()->prepare("DELETE FROM {$table} WHERE class_id = :class_id");
-        $delete->execute(['class_id' => $classId]);
+        $this->deleteMissing($table, $classId, $personIds);
+        $this->insertMissing($table, $classId, $personIds);
+    }
 
-        $insert = Database::connection()->prepare(
-            "INSERT INTO {$table} (class_id, person_id) VALUES (:class_id, :person_id)"
+    private function deleteMissing(string $table, int $classId, array $personIds): void
+    {
+        if ($personIds === []) {
+            $delete = Database::connection()->prepare("DELETE FROM {$table} WHERE class_id = :class_id");
+            $delete->execute(['class_id' => $classId]);
+
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($personIds), '?'));
+        $delete = Database::connection()->prepare(
+            "DELETE FROM {$table} WHERE class_id = ? AND person_id NOT IN ({$placeholders})"
         );
+        $delete->execute([$classId, ...$personIds]);
+    }
+
+    private function insertMissing(string $table, int $classId, array $personIds): void
+    {
+        if ($personIds === []) {
+            return;
+        }
+
+        $sql = Database::driver() === 'pgsql'
+            ? "INSERT INTO {$table} (class_id, person_id) VALUES (:class_id, :person_id) ON CONFLICT (class_id, person_id) DO NOTHING"
+            : "INSERT OR IGNORE INTO {$table} (class_id, person_id) VALUES (:class_id, :person_id)";
+
+        $insert = Database::connection()->prepare($sql);
 
         foreach ($personIds as $personId) {
             $insert->execute([

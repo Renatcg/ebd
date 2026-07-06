@@ -225,8 +225,8 @@ function handleApi(string $path): void
                         is_array($input['teachers'] ?? null) ? $input['teachers'] : []
                     ),
                 ]);
-            } catch (Throwable $exception) {
-                Response::error('Nao foi possivel salvar os vinculos desta classe: ' . $exception->getMessage(), 500);
+            } catch (Throwable) {
+                Response::error('Nao foi possivel salvar os vinculos desta classe. Recarregue a pagina e tente novamente.', 500);
             }
         }
     }
