@@ -6,6 +6,8 @@ final class PeopleImportService
 {
     public function import(array $file, array $genderDecisions = []): array
     {
+        $genderDecisions = $this->normalizeGenderDecisions($genderDecisions);
+
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             Response::error('Nao foi possivel receber a planilha.', 422);
         }
@@ -138,6 +140,22 @@ final class PeopleImportService
         }
 
         return $conflicts;
+    }
+
+    private function normalizeGenderDecisions(array $genderDecisions): array
+    {
+        $normalized = [];
+
+        foreach ($genderDecisions as $rowNumber => $gender) {
+            $rowNumber = (int) $rowNumber;
+            $gender = $this->normalizeGender($gender);
+
+            if ($rowNumber > 0 && $gender !== '') {
+                $normalized[$rowNumber] = $gender;
+            }
+        }
+
+        return $normalized;
     }
 
     private function headerMap(array $header): array

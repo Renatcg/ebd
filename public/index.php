@@ -312,12 +312,17 @@ function handleApi(string $path): void
     if ($path === '/api/people/import' && $method === 'POST') {
         Auth::requireRole(['admin']);
         $genderDecisions = json_decode((string) ($_POST['gender_decisions'] ?? '{}'), true);
-        Response::json([
-            'data' => (new PeopleImportService())->import(
-                $_FILES['spreadsheet'] ?? [],
-                is_array($genderDecisions) ? $genderDecisions : []
-            ),
-        ]);
+
+        try {
+            Response::json([
+                'data' => (new PeopleImportService())->import(
+                    $_FILES['spreadsheet'] ?? [],
+                    is_array($genderDecisions) ? $genderDecisions : []
+                ),
+            ]);
+        } catch (Throwable) {
+            Response::error('Nao foi possivel concluir a importacao. Verifique a planilha e tente novamente.', 500);
+        }
     }
 
     if (preg_match('#^/api/people/(\d+)$#', $path, $matches)) {

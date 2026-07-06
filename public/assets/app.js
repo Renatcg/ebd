@@ -554,9 +554,20 @@ async function importPeopleFromSpreadsheet() {
             alert(response.error);
             return;
         }
+
+        if (response.data?.needs_review) {
+            alert('Ainda ha divergencias de sexo para revisar. Tente importar novamente e revise todos os nomes apontados.');
+            return;
+        }
     }
 
     const result = response.data;
+
+    if (!result || !Number.isInteger(result.created) || !Number.isInteger(result.updated) || !Number.isInteger(result.skipped)) {
+        alert('A importacao nao retornou um resultado valido. Nenhum registro foi confirmado na tela.');
+        return;
+    }
+
     await loadPeople();
     alert(`Importacao concluida. Novas: ${result.created}. Atualizadas: ${result.updated}. Ignoradas: ${result.skipped}.`);
 }
@@ -631,7 +642,13 @@ async function uploadPeopleSpreadsheet(formData) {
     const text = await response.text();
 
     try {
-        return JSON.parse(text);
+        const payload = JSON.parse(text);
+
+        if (!response.ok && !payload.error) {
+            return { error: `Nao foi possivel importar a planilha. HTTP ${response.status}` };
+        }
+
+        return payload;
     } catch {
         return {
             error: `Resposta inesperada ao importar planilha: ${text.slice(0, 220) || `HTTP ${response.status}`}`,
