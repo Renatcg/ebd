@@ -49,39 +49,46 @@ final class ClassPeopleRepository
         $this->validatePeopleExist([...$studentIds, ...$teacherIds]);
         $this->validateNoCourseConflict($classId, (int) $class['course_id'], [...$studentIds, ...$teacherIds]);
 
-        $pdo = Database::connection();
-        $pdo->beginTransaction();
-
-        try {
-            $this->syncTable('class_students', $classId, $studentIds);
-            $this->syncTable('class_teachers', $classId, $teacherIds);
-            $pdo->commit();
-        } catch (Throwable $exception) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            }
-
-            throw $exception;
-        }
+        $this->syncTable('class_students', $classId, $studentIds);
+        $this->syncTable('class_teachers', $classId, $teacherIds);
 
         return $this->get($classId);
     }
 
     public function syncRole(int $classId, string $role, array $personIds): array
     {
+        $personIds = $this->cleanIds($personIds);
+        $class = (new ClassRepository())->find($classId);
+
+        if ($class === null) {
+            Response::error('Classe nao encontrada.', 404);
+        }
+
         $current = $this->get($classId);
-        $studentIds = array_map(fn (array $person): int => (int) $person['id'], $current['students']);
-        $teacherIds = array_map(fn (array $person): int => (int) $person['id'], $current['teachers']);
+        $currentStudentIds = array_map(fn (array $person): int => (int) $person['id'], $current['students']);
+        $currentTeacherIds = array_map(fn (array $person): int => (int) $person['id'], $current['teachers']);
 
         if ($role === 'students') {
             $studentIds = $personIds;
+            $teacherIds = $currentTeacherIds;
+            $table = 'class_students';
         } elseif ($role === 'teachers') {
+            $studentIds = $currentStudentIds;
             $teacherIds = $personIds;
+            $table = 'class_teachers';
         } else {
             Response::error('Tipo de vinculo invalido.', 422);
         }
 
-        return $this->sync($classId, $studentIds, $teacherIds);
+        if (array_intersect($studentIds, $teacherIds) !== []) {
+            Response::error('A mesma pessoa nao pode ser aluno e professor na mesma classe.', 422);
+        }
+
+        $this->validatePeopleExist($personIds);
+        $this->validateNoCourseConflict($classId, (int) $class['course_id'], $personIds);
+        $this->syncTable($table, $classId, $personIds);
+
+        return $this->get($classId);
     }
 
     private function peopleFor(int $classId, string $table): array
