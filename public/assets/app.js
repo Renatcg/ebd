@@ -55,7 +55,9 @@ const classesCourseTitle = document.querySelector('#classesCourseTitle');
 const classPeopleModal = document.querySelector('#classPeopleModal');
 const classPeopleForm = document.querySelector('#classPeopleForm');
 const classPeopleModalTitle = document.querySelector('#classPeopleModalTitle');
+const studentChoiceLayout = document.querySelector('#studentChoiceLayout');
 const studentChoices = document.querySelector('#studentChoices');
+const selectedStudentChoices = document.querySelector('#selectedStudentChoices');
 const teacherChoices = document.querySelector('#teacherChoices');
 const ambassadorChoices = document.querySelector('#ambassadorChoices');
 const classPeopleSearch = document.querySelector('#classPeopleSearch');
@@ -150,6 +152,7 @@ document.querySelector('#closeClassPeopleModal').addEventListener('click', () =>
 document.querySelector('#cancelClassPeopleButton').addEventListener('click', () => classPeopleModal.close());
 classPeopleSearch.addEventListener('input', updateActiveClassPeopleChoices);
 studentChoices.addEventListener('change', updateActiveClassPeopleChoices);
+selectedStudentChoices.addEventListener('change', updateActiveClassPeopleChoices);
 teacherChoices.addEventListener('change', updateActiveClassPeopleChoices);
 ambassadorChoices.addEventListener('change', updateActiveClassPeopleChoices);
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
@@ -849,6 +852,7 @@ async function openClassPeopleModal(item, role) {
     Object.keys(CLASS_ROLE_CONFIG).forEach((classRole) => {
         roleContainer(classRole).classList.toggle('hidden', role !== classRole);
     });
+    studentChoiceLayout.classList.toggle('hidden', role !== 'students');
     renderActiveClassPeopleChoices();
     classPeopleModal.showModal();
 
@@ -902,8 +906,6 @@ function renderActiveClassPeopleChoices() {
     const name = role;
     let selectedIds = state.classPeopleSelection[role];
     const query = normalizeSearch(classPeopleSearch.value);
-    const selectedIdSet = new Set(selectedIds.map(Number));
-    const selectedPeople = state.people.filter((person) => selectedIdSet.has(Number(person.id)));
     const blockedStudentIds = role === 'students'
         ? new Set((state.classPeopleSelection.courseStaffIds || []).map(Number))
         : new Set();
@@ -912,9 +914,12 @@ function renderActiveClassPeopleChoices() {
         selectedIds = selectedIds.filter((id) => !blockedStudentIds.has(Number(id)));
         state.classPeopleSelection.students = selectedIds;
     }
+
+    const selectedIdSet = new Set(selectedIds.map(Number));
+    const selectedPeople = state.people.filter((person) => selectedIdSet.has(Number(person.id)));
     const people = state.people.filter((person) => (
         normalizeSearch(person.name).includes(query)
-        && (role === 'students' || !selectedIdSet.has(Number(person.id)))
+        && !selectedIdSet.has(Number(person.id))
     ));
 
     if (role !== 'students') {
@@ -951,6 +956,22 @@ function renderActiveClassPeopleChoices() {
     if (container.innerHTML === '') {
         container.innerHTML = '<p class="empty-text">Nenhuma pessoa encontrada.</p>';
     }
+
+    renderSelectedStudentChoices(selectedPeople);
+}
+
+function renderSelectedStudentChoices(students) {
+    selectedStudentChoices.innerHTML = `
+        <p class="choice-group-title">Ja matriculados</p>
+        ${students.length > 0
+            ? students.map((student) => `
+                <label class="selected-choice-item">
+                    <input type="checkbox" name="students" value="${student.id}" checked>
+                    <span>${escapeHtml(student.name)}</span>
+                </label>
+            `).join('')
+            : '<p class="empty-text">Nenhum aluno vinculado.</p>'}
+    `;
 }
 
 function personChoiceMarkup(person, name, checked, blocked = false) {
@@ -982,9 +1003,13 @@ function syncVisibleClassPeopleChoices() {
     }
 
     const role = state.classPeopleSelection.role;
-    const container = roleContainer(role);
-    const visibleIds = Array.from(container.querySelectorAll('input[type="checkbox"]')).map((input) => Number(input.value));
-    const checkedIds = checkedValues(container);
+    const containers = role === 'students'
+        ? [studentChoices, selectedStudentChoices]
+        : [roleContainer(role)];
+    const visibleIds = containers.flatMap((container) => (
+        Array.from(container.querySelectorAll('input[type="checkbox"]')).map((input) => Number(input.value))
+    ));
+    const checkedIds = containers.flatMap((container) => checkedValues(container));
     const hiddenSelectedIds = state.classPeopleSelection[role].filter((id) => !visibleIds.includes(Number(id)));
 
     state.classPeopleSelection[role] = Array.from(new Set([...hiddenSelectedIds, ...checkedIds]));

@@ -544,6 +544,31 @@ dialog::backdrop {
     padding: 10px;
 }
 
+.student-choice-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.9fr);
+    gap: 12px;
+    align-items: start;
+}
+
+.selected-choice-panel {
+    display: grid;
+    gap: 8px;
+    max-height: 300px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-soft);
+    padding: 10px;
+}
+
+.selected-choice-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 32px;
+}
+
 .choice-list label {
     display: flex;
     align-items: center;
@@ -624,6 +649,10 @@ dialog::backdrop {
     }
 
     .dual-list {
+        grid-template-columns: 1fr;
+    }
+
+    .student-choice-layout {
         grid-template-columns: 1fr;
     }
 
