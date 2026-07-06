@@ -527,6 +527,19 @@ dialog::backdrop {
     width: auto;
 }
 
+.choice-disabled {
+    color: var(--muted);
+    opacity: 0.55;
+}
+
+.choice-role-badge {
+    display: inline-grid;
+    min-width: 16px;
+    color: var(--ink);
+    font-weight: 900;
+    text-align: center;
+}
+
 .choice-group {
     display: grid;
     gap: 8px;

@@ -84,11 +84,20 @@ final class ClassPeopleRepository
             Response::error('A mesma pessoa nao pode ser aluno e professor na mesma classe.', 422);
         }
 
-        $this->validatePeopleExist($personIds);
-        $this->validateNoCourseConflict($classId, (int) $class['course_id'], $personIds);
-        $this->syncTable($table, $classId, $personIds);
+        $existingIds = $role === 'students' ? $currentStudentIds : $currentTeacherIds;
+        $newIds = array_values(array_diff($personIds, $existingIds));
 
-        return $this->get($classId);
+        $this->validatePeopleExist($newIds);
+        $this->validateNoCourseConflict($classId, (int) $class['course_id'], $newIds);
+
+        if (!$this->sameIds($existingIds, $personIds)) {
+            $this->syncTableChanges($table, $classId, $existingIds, $personIds);
+        }
+
+        return [
+            'students' => $studentIds,
+            'teachers' => $teacherIds,
+        ];
     }
 
     private function peopleFor(int $classId, string $table): array
@@ -150,6 +159,36 @@ final class ClassPeopleRepository
                 'existing_person_id' => $personId,
             ]);
         }
+    }
+
+    private function syncTableChanges(string $table, int $classId, array $existingIds, array $personIds): void
+    {
+        $deleteIds = array_values(array_diff($existingIds, $personIds));
+        $insertIds = array_values(array_diff($personIds, $existingIds));
+
+        $this->deleteSpecific($table, $classId, $deleteIds);
+        $this->insertMissing($table, $classId, $insertIds);
+    }
+
+    private function deleteSpecific(string $table, int $classId, array $personIds): void
+    {
+        if ($personIds === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($personIds), '?'));
+        $delete = Database::connection()->prepare(
+            "DELETE FROM {$table} WHERE class_id = ? AND person_id IN ({$placeholders})"
+        );
+        $delete->execute([$classId, ...$personIds]);
+    }
+
+    private function sameIds(array $left, array $right): bool
+    {
+        sort($left);
+        sort($right);
+
+        return $left === $right;
     }
 
     private function cleanIds(array $ids): array

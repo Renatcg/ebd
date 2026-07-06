@@ -129,7 +129,7 @@ document.querySelector('#closeClassModal').addEventListener('click', () => class
 document.querySelector('#cancelClassButton').addEventListener('click', () => classModal.close());
 document.querySelector('#closeClassPeopleModal').addEventListener('click', () => classPeopleModal.close());
 document.querySelector('#cancelClassPeopleButton').addEventListener('click', () => classPeopleModal.close());
-classPeopleSearch.addEventListener('input', () => renderActiveClassPeopleChoices());
+classPeopleSearch.addEventListener('input', updateActiveClassPeopleChoices);
 studentChoices.addEventListener('change', updateActiveClassPeopleChoices);
 teacherChoices.addEventListener('change', updateActiveClassPeopleChoices);
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
@@ -273,6 +273,19 @@ classPeopleForm.addEventListener('submit', async (event) => {
         return;
     }
 
+    if (role === 'students' && hasCourseTeacherOverlap(current.courseTeacherIds, current.students)) {
+        alert('Professores deste curso nao podem ser selecionados como alunos neste mesmo curso.');
+        return;
+    }
+
+    const previous = state.classPeople.get(Number(classId)) || { students: [], teachers: [] };
+    state.classPeople.set(Number(classId), {
+        students: [...current.students],
+        teachers: [...current.teachers],
+    });
+    state.classPeopleSelection = null;
+    classPeopleModal.close();
+
     const response = await api(`/api/classes/${classId}/people/${role}`, {
         method: 'PUT',
         body: {
@@ -281,13 +294,12 @@ classPeopleForm.addEventListener('submit', async (event) => {
     });
 
     if (response.error) {
+        state.classPeople.set(Number(classId), previous);
         alert(response.error);
         return;
     }
 
     state.classPeople.set(Number(classId), classPeopleIdsFromResponse(response.data));
-    state.classPeopleSelection = null;
-    classPeopleModal.close();
     alert(role === 'teachers' ? 'Professores salvos.' : 'Alunos salvos.');
 });
 
@@ -770,6 +782,7 @@ async function openClassPeopleModal(item, role) {
 
     const classId = Number(item.id);
     const current = state.classPeople.get(classId) || { students: [], teachers: [] };
+    const courseTeacherIds = teacherIdsForCourse(Number(item.course_id));
 
     classPeopleForm.reset();
     classPeopleForm.elements.class_id.value = classId;
@@ -781,6 +794,8 @@ async function openClassPeopleModal(item, role) {
         role,
         students: [...current.students],
         teachers: [...current.teachers],
+        courseId: Number(item.course_id),
+        courseTeacherIds,
     };
     studentChoices.classList.toggle('hidden', role !== 'students');
     teacherChoices.classList.toggle('hidden', role !== 'teachers');
@@ -806,6 +821,7 @@ async function refreshClassPeopleSelection(classId) {
     if (state.classPeopleSelection?.classId === classId) {
         state.classPeopleSelection.students = [...ids.students];
         state.classPeopleSelection.teachers = [...ids.teachers];
+        state.classPeopleSelection.courseTeacherIds = teacherIdsForCourse(state.classPeopleSelection.courseId);
         renderActiveClassPeopleChoices();
     }
 }
@@ -835,10 +851,18 @@ function renderActiveClassPeopleChoices() {
     const role = state.classPeopleSelection.role;
     const container = role === 'teachers' ? teacherChoices : studentChoices;
     const name = role;
-    const selectedIds = state.classPeopleSelection[role];
+    let selectedIds = state.classPeopleSelection[role];
     const query = normalizeSearch(classPeopleSearch.value);
     const selectedIdSet = new Set(selectedIds.map(Number));
     const selectedPeople = state.people.filter((person) => selectedIdSet.has(Number(person.id)));
+    const blockedStudentIds = role === 'students'
+        ? new Set((state.classPeopleSelection.courseTeacherIds || []).map(Number))
+        : new Set();
+
+    if (role === 'students' && blockedStudentIds.size > 0) {
+        selectedIds = selectedIds.filter((id) => !blockedStudentIds.has(Number(id)));
+        state.classPeopleSelection.students = selectedIds;
+    }
     const people = state.people.filter((person) => (
         normalizeSearch(person.name).includes(query)
         && (role !== 'teachers' || !selectedIdSet.has(Number(person.id)))
@@ -867,7 +891,12 @@ function renderActiveClassPeopleChoices() {
     }
 
     container.innerHTML = people
-        .map((person) => personChoiceMarkup(person, name, selectedIds.includes(Number(person.id))))
+        .map((person) => {
+            const personId = Number(person.id);
+            const blocked = blockedStudentIds.has(personId);
+
+            return personChoiceMarkup(person, name, selectedIds.includes(personId) && !blocked, blocked);
+        })
         .join('');
 
     if (container.innerHTML === '') {
@@ -875,7 +904,16 @@ function renderActiveClassPeopleChoices() {
     }
 }
 
-function personChoiceMarkup(person, name, checked) {
+function personChoiceMarkup(person, name, checked, blocked = false) {
+    if (blocked) {
+        return `
+            <label class="choice-disabled" title="Professor vinculado a este curso">
+                <strong class="choice-role-badge">P</strong>
+                <span>${escapeHtml(person.name)}</span>
+            </label>
+        `;
+    }
+
     return `
         <label>
             <input type="checkbox" name="${name}" value="${person.id}" ${checked ? 'checked' : ''}>
@@ -907,6 +945,31 @@ function hasClassRoleOverlap(studentIds, teacherIds) {
     const teachers = new Set(teacherIds.map(Number));
 
     return studentIds.some((id) => teachers.has(Number(id)));
+}
+
+function hasCourseTeacherOverlap(courseTeacherIds = [], studentIds = []) {
+    const teachers = new Set(courseTeacherIds.map(Number));
+
+    return studentIds.some((id) => teachers.has(Number(id)));
+}
+
+function teacherIdsForCourse(courseId) {
+    const ids = new Set();
+    const courseClassIds = new Set(
+        state.classes
+            .filter((item) => Number(item.course_id) === Number(courseId))
+            .map((item) => Number(item.id))
+    );
+
+    state.classPeople.forEach((people, classId) => {
+        if (!courseClassIds.has(Number(classId))) {
+            return;
+        }
+
+        (people.teachers || []).forEach((personId) => ids.add(Number(personId)));
+    });
+
+    return Array.from(ids);
 }
 
 function normalizeSearch(value) {
