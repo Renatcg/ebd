@@ -280,7 +280,7 @@ classPeopleForm.addEventListener('submit', async (event) => {
         return;
     }
 
-    state.classPeople.delete(Number(classId));
+    state.classPeople.set(Number(classId), classPeopleIdsFromResponse(response.data));
     state.classPeopleSelection = null;
     classPeopleModal.close();
 });
@@ -422,6 +422,7 @@ function applyInitialData(response) {
     state.courses = data.courses || [];
     state.classes = data.classes || [];
     state.people = data.people || [];
+    state.classPeople = classPeopleMapFromPayload(data.class_people || {});
     state.lessonMarkers = new Set((data.lesson_markers || []).map((item) => markerKey(item.lesson_date, item.class_id)));
     state.pedagogicoStudents = data.pedagogico_students || [];
 
@@ -761,31 +762,63 @@ async function openClassPeopleModal(item, role) {
         return;
     }
 
-    const response = await api(`/api/classes/${item.id}/people`);
+    const classId = Number(item.id);
+    const current = state.classPeople.get(classId) || { students: [], teachers: [] };
+
+    classPeopleForm.reset();
+    classPeopleForm.elements.class_id.value = classId;
+    classPeopleForm.elements.people_role.value = role;
+    classPeopleModalTitle.textContent = `${role === 'students' ? 'Alunos' : 'Professores'} - ${item.name}`;
+    classPeopleSearch.value = '';
+    state.classPeopleSelection = {
+        classId,
+        role,
+        students: [...current.students],
+        teachers: [...current.teachers],
+    };
+    studentChoices.classList.toggle('hidden', role !== 'students');
+    teacherChoices.classList.toggle('hidden', role !== 'teachers');
+    renderActiveClassPeopleChoices();
+    classPeopleModal.showModal();
+
+    if (!state.classPeople.has(classId)) {
+        refreshClassPeopleSelection(classId);
+    }
+}
+
+async function refreshClassPeopleSelection(classId) {
+    const response = await api(`/api/classes/${classId}/people`);
 
     if (response.error) {
         alert(response.error);
         return;
     }
 
-    const studentIds = response.data.students.map((person) => Number(person.id));
-    const teacherIds = response.data.teachers.map((person) => Number(person.id));
+    const ids = classPeopleIdsFromResponse(response.data);
+    state.classPeople.set(classId, ids);
 
-    classPeopleForm.reset();
-    classPeopleForm.elements.class_id.value = item.id;
-    classPeopleForm.elements.people_role.value = role;
-    classPeopleModalTitle.textContent = `${role === 'students' ? 'Alunos' : 'Professores'} - ${item.name}`;
-    classPeopleSearch.value = '';
-    state.classPeopleSelection = {
-        classId: Number(item.id),
-        role,
-        students: studentIds,
-        teachers: teacherIds,
+    if (state.classPeopleSelection?.classId === classId) {
+        state.classPeopleSelection.students = [...ids.students];
+        state.classPeopleSelection.teachers = [...ids.teachers];
+        renderActiveClassPeopleChoices();
+    }
+}
+
+function classPeopleMapFromPayload(payload) {
+    return new Map(Object.entries(payload).map(([classId, people]) => [
+        Number(classId),
+        {
+            students: (people.students || []).map(Number),
+            teachers: (people.teachers || []).map(Number),
+        },
+    ]));
+}
+
+function classPeopleIdsFromResponse(data) {
+    return {
+        students: (data.students || []).map((person) => Number(person.id ?? person)),
+        teachers: (data.teachers || []).map((person) => Number(person.id ?? person)),
     };
-    studentChoices.classList.toggle('hidden', role !== 'students');
-    teacherChoices.classList.toggle('hidden', role !== 'teachers');
-    renderActiveClassPeopleChoices();
-    classPeopleModal.showModal();
 }
 
 function renderActiveClassPeopleChoices() {
@@ -1550,7 +1583,7 @@ async function api(path, options = {}) {
         return JSON.parse(text);
     } catch {
         return {
-            error: `Resposta inesperada do servidor em ${path}. Verifique se iniciou o PHP com public/router.php.`,
+            error: `Resposta inesperada do servidor em ${path}: ${text.slice(0, 220) || `HTTP ${response.status}`}`,
         };
     }
 }

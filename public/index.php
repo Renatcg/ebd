@@ -62,6 +62,7 @@ function handleApi(string $path): void
                 'courses' => (new CourseRepository())->all(),
                 'classes' => (new ClassRepository())->all(),
                 'people' => (new PersonRepository())->all(),
+                'class_people' => (new ClassPeopleRepository())->groupedIds(),
                 'lesson_markers' => in_array($user['role'], ['admin', 'secretaria'], true)
                     ? (new LessonRepository())->markersForMonth($month)
                     : [],
@@ -215,13 +216,18 @@ function handleApi(string $path): void
 
         if ($method === 'PUT') {
             Auth::requireRole(['admin']);
-            Response::json([
-                'data' => $repository->sync(
-                    $id,
-                    is_array($input['students'] ?? null) ? $input['students'] : [],
-                    is_array($input['teachers'] ?? null) ? $input['teachers'] : []
-                ),
-            ]);
+
+            try {
+                Response::json([
+                    'data' => $repository->sync(
+                        $id,
+                        is_array($input['students'] ?? null) ? $input['students'] : [],
+                        is_array($input['teachers'] ?? null) ? $input['teachers'] : []
+                    ),
+                ]);
+            } catch (Throwable) {
+                Response::error('Nao foi possivel salvar os vinculos desta classe.', 500);
+            }
         }
     }
 

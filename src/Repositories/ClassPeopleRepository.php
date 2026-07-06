@@ -12,6 +12,25 @@ final class ClassPeopleRepository
         ];
     }
 
+    public function groupedIds(): array
+    {
+        $grouped = [];
+
+        foreach (['students' => 'class_students', 'teachers' => 'class_teachers'] as $key => $table) {
+            $rows = Database::connection()
+                ->query("SELECT class_id, person_id FROM {$table} ORDER BY class_id, person_id")
+                ->fetchAll();
+
+            foreach ($rows as $row) {
+                $classId = (int) $row['class_id'];
+                $grouped[$classId] ??= ['students' => [], 'teachers' => []];
+                $grouped[$classId][$key][] = (int) $row['person_id'];
+            }
+        }
+
+        return $grouped;
+    }
+
     public function sync(int $classId, array $studentIds, array $teacherIds): array
     {
         $studentIds = $this->cleanIds($studentIds);
