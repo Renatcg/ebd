@@ -1,4 +1,21 @@
 const BRANDING_CACHE_KEY = 'ebd.branding.logo';
+const APP_ROUTES = {
+    courses: '/cursos',
+    classes: '/cursos/classes',
+    people: '/pessoas',
+    secretaria: '/secretaria',
+    pedagogico: '/pedagogico',
+    studentReports: '/pedagogico/relatorios',
+    settings: '/configuracoes',
+};
+const ROUTE_PAGES = Object.fromEntries(Object.entries(APP_ROUTES).map(([page, path]) => [path, page]));
+const CLASS_ROLE_CONFIG = {
+    students: { label: 'Alunos', singular: 'Aluno', button: 'A', container: '#studentChoices' },
+    teachers: { label: 'Professores', singular: 'Professor', button: 'P', container: '#teacherChoices' },
+    ambassadors: { label: 'Embaixadores', singular: 'Embaixador', button: 'E', container: '#ambassadorChoices' },
+    directors: { label: 'Diretores', singular: 'Diretor', button: 'D', container: '#directorChoices' },
+};
+const STAFF_CLASS_ROLES = ['teachers', 'ambassadors', 'directors'];
 
 const state = {
     token: localStorage.getItem('ebd.token'),
@@ -41,6 +58,8 @@ const classPeopleForm = document.querySelector('#classPeopleForm');
 const classPeopleModalTitle = document.querySelector('#classPeopleModalTitle');
 const studentChoices = document.querySelector('#studentChoices');
 const teacherChoices = document.querySelector('#teacherChoices');
+const ambassadorChoices = document.querySelector('#ambassadorChoices');
+const directorChoices = document.querySelector('#directorChoices');
 const classPeopleSearch = document.querySelector('#classPeopleSearch');
 const personRows = document.querySelector('#personRows');
 const emptyPeople = document.querySelector('#emptyPeople');
@@ -117,6 +136,7 @@ document.querySelector('#logoutButton').addEventListener('click', () => {
     localStorage.removeItem('ebd.token');
     state.token = null;
     state.user = null;
+    history.replaceState({}, '', '/');
     showLogin();
 });
 
@@ -132,6 +152,8 @@ document.querySelector('#cancelClassPeopleButton').addEventListener('click', () 
 classPeopleSearch.addEventListener('input', updateActiveClassPeopleChoices);
 studentChoices.addEventListener('change', updateActiveClassPeopleChoices);
 teacherChoices.addEventListener('change', updateActiveClassPeopleChoices);
+ambassadorChoices.addEventListener('change', updateActiveClassPeopleChoices);
+directorChoices.addEventListener('change', updateActiveClassPeopleChoices);
 document.querySelector('#newPersonButton').addEventListener('click', () => openPersonModal());
 document.querySelector('#importPeopleButton').addEventListener('click', () => peopleImportFile.click());
 peopleImportFile.addEventListener('change', () => importPeopleFromSpreadsheet());
@@ -268,21 +290,18 @@ classPeopleForm.addEventListener('submit', async (event) => {
     syncVisibleClassPeopleChoices();
     const current = state.classPeopleSelection || { students: [], teachers: [] };
 
-    if (hasClassRoleOverlap(current.students, current.teachers)) {
-        alert('A mesma pessoa nao pode ser aluno e professor na mesma classe.');
+    if (hasClassRoleOverlap(current)) {
+        alert('A mesma pessoa nao pode ocupar duas funcoes na mesma classe.');
         return;
     }
 
-    if (role === 'students' && hasCourseTeacherOverlap(current.courseTeacherIds, current.students)) {
-        alert('Professores deste curso nao podem ser selecionados como alunos neste mesmo curso.');
+    if (role === 'students' && hasCourseStaffOverlap(current.courseStaffIds, current.students)) {
+        alert('Pessoas com funcao neste curso nao podem ser selecionadas como alunos neste mesmo curso.');
         return;
     }
 
-    const previous = state.classPeople.get(Number(classId)) || { students: [], teachers: [] };
-    state.classPeople.set(Number(classId), {
-        students: [...current.students],
-        teachers: [...current.teachers],
-    });
+    const previous = state.classPeople.get(Number(classId)) || emptyClassPeople();
+    state.classPeople.set(Number(classId), classPeopleFromSelection(current));
     state.classPeopleSelection = null;
     classPeopleModal.close();
 
@@ -300,7 +319,7 @@ classPeopleForm.addEventListener('submit', async (event) => {
     }
 
     state.classPeople.set(Number(classId), classPeopleIdsFromResponse(response.data));
-    alert(role === 'teachers' ? 'Professores salvos.' : 'Alunos salvos.');
+    alert(`${CLASS_ROLE_CONFIG[role].label} salvos.`);
 });
 
 personForm.addEventListener('submit', async (event) => {
@@ -314,6 +333,9 @@ personForm.addEventListener('submit', async (event) => {
         phone: form.get('phone'),
         birth_date: form.get('birth_date'),
         notes: form.get('notes'),
+        access_role: form.get('access_role'),
+        access_email: form.get('access_email'),
+        access_password: form.get('access_password'),
     };
 
     const response = await api(id ? `/api/people/${id}` : '/api/people', {
@@ -423,6 +445,7 @@ async function enterApp(initialData = null) {
     }
 
     applyInitialData(response);
+    showPage(pageFromLocation(), { replace: true });
     queueExistingNameNormalization();
 }
 
@@ -449,12 +472,27 @@ function applyInitialData(response) {
     renderPeople();
     renderSecretariaCalendar();
     renderPedagogicoStudents();
+    applyRoleVisibility();
 
     if (data.settings?.openai_model !== undefined) {
         renderSettings(data.settings);
     } else if (data.settings?.app_logo_data !== undefined) {
         applyBranding(data.settings.app_logo_data || '');
     }
+}
+
+function applyRoleVisibility() {
+    const role = state.user?.role || '';
+    const isAdmin = role === 'admin';
+    const canUsePedagogico = ['admin', 'pedagogico', 'professor', 'embaixador', 'diretor'].includes(role);
+    const canGenerateOpinion = ['admin', 'pedagogico', 'diretor'].includes(role);
+
+    document.querySelector('[data-page="courses"]')?.classList.toggle('hidden', !isAdmin);
+    document.querySelector('[data-page="people"]')?.classList.toggle('hidden', !isAdmin);
+    document.querySelector('[data-page="settings"]')?.classList.toggle('hidden', !isAdmin);
+    document.querySelector('[data-page="secretaria"]')?.classList.toggle('hidden', !['admin', 'secretaria'].includes(role));
+    document.querySelector('[data-page="pedagogico"]')?.classList.toggle('hidden', !canUsePedagogico);
+    document.querySelector('#studentOpinionButton')?.classList.toggle('hidden', !canGenerateOpinion);
 }
 
 function showLogin() {
@@ -551,14 +589,18 @@ function renderClasses() {
             <span class="actions">
                 <button class="ghost-icon" title="Alunos" aria-label="Alunos">A</button>
                 <button class="ghost-icon" title="Professores" aria-label="Professores">P</button>
+                <button class="ghost-icon" title="Embaixadores" aria-label="Embaixadores">E</button>
+                <button class="ghost-icon" title="Diretores" aria-label="Diretores">D</button>
                 <button class="ghost-icon" title="Editar" aria-label="Editar">✎</button>
                 <button class="ghost-icon danger" title="Excluir" aria-label="Excluir">×</button>
             </span>
         `;
 
-        const [studentsButton, teachersButton, editButton, deleteButton] = row.querySelectorAll('button');
+        const [studentsButton, teachersButton, ambassadorsButton, directorsButton, editButton, deleteButton] = row.querySelectorAll('button');
         studentsButton.addEventListener('click', () => openClassPeopleModal(item, 'students'));
         teachersButton.addEventListener('click', () => openClassPeopleModal(item, 'teachers'));
+        ambassadorsButton.addEventListener('click', () => openClassPeopleModal(item, 'ambassadors'));
+        directorsButton.addEventListener('click', () => openClassPeopleModal(item, 'directors'));
         editButton.addEventListener('click', () => openClassModal(item));
         deleteButton.addEventListener('click', () => deleteClass(item));
         classRows.appendChild(row);
@@ -771,6 +813,9 @@ function openPersonModal(person = null) {
     personForm.elements.phone.value = person?.phone || '';
     personForm.elements.birth_date.value = person?.birth_date || '';
     personForm.elements.notes.value = person?.notes || '';
+    personForm.elements.access_role.value = person?.access_role || '';
+    personForm.elements.access_email.value = person?.access_email || person?.email || '';
+    personForm.elements.access_password.value = '';
     personModal.showModal();
 }
 
@@ -781,24 +826,27 @@ async function openClassPeopleModal(item, role) {
     }
 
     const classId = Number(item.id);
-    const current = state.classPeople.get(classId) || { students: [], teachers: [] };
-    const courseTeacherIds = teacherIdsForCourse(Number(item.course_id));
+    const current = state.classPeople.get(classId) || emptyClassPeople();
+    const courseStaffIds = staffIdsForCourse(Number(item.course_id));
 
     classPeopleForm.reset();
     classPeopleForm.elements.class_id.value = classId;
     classPeopleForm.elements.people_role.value = role;
-    classPeopleModalTitle.textContent = `${role === 'students' ? 'Alunos' : 'Professores'} - ${item.name}`;
+    classPeopleModalTitle.textContent = `${CLASS_ROLE_CONFIG[role].label} - ${item.name}`;
     classPeopleSearch.value = '';
     state.classPeopleSelection = {
         classId,
         role,
         students: [...current.students],
         teachers: [...current.teachers],
+        ambassadors: [...current.ambassadors],
+        directors: [...current.directors],
         courseId: Number(item.course_id),
-        courseTeacherIds,
+        courseStaffIds,
     };
-    studentChoices.classList.toggle('hidden', role !== 'students');
-    teacherChoices.classList.toggle('hidden', role !== 'teachers');
+    Object.keys(CLASS_ROLE_CONFIG).forEach((classRole) => {
+        roleContainer(classRole).classList.toggle('hidden', role !== classRole);
+    });
     renderActiveClassPeopleChoices();
     classPeopleModal.showModal();
 
@@ -821,7 +869,9 @@ async function refreshClassPeopleSelection(classId) {
     if (state.classPeopleSelection?.classId === classId) {
         state.classPeopleSelection.students = [...ids.students];
         state.classPeopleSelection.teachers = [...ids.teachers];
-        state.classPeopleSelection.courseTeacherIds = teacherIdsForCourse(state.classPeopleSelection.courseId);
+        state.classPeopleSelection.ambassadors = [...ids.ambassadors];
+        state.classPeopleSelection.directors = [...ids.directors];
+        state.classPeopleSelection.courseStaffIds = staffIdsForCourse(state.classPeopleSelection.courseId);
         renderActiveClassPeopleChoices();
     }
 }
@@ -829,10 +879,7 @@ async function refreshClassPeopleSelection(classId) {
 function classPeopleMapFromPayload(payload) {
     return new Map(Object.entries(payload).map(([classId, people]) => [
         Number(classId),
-        {
-            students: (people.students || []).map(Number),
-            teachers: (people.teachers || []).map(Number),
-        },
+        classPeopleIdsFromResponse(people),
     ]));
 }
 
@@ -840,6 +887,8 @@ function classPeopleIdsFromResponse(data) {
     return {
         students: (data.students || []).map((person) => Number(person.id ?? person)),
         teachers: (data.teachers || []).map((person) => Number(person.id ?? person)),
+        ambassadors: (data.ambassadors || []).map((person) => Number(person.id ?? person)),
+        directors: (data.directors || []).map((person) => Number(person.id ?? person)),
     };
 }
 
@@ -849,14 +898,14 @@ function renderActiveClassPeopleChoices() {
     }
 
     const role = state.classPeopleSelection.role;
-    const container = role === 'teachers' ? teacherChoices : studentChoices;
+    const container = roleContainer(role);
     const name = role;
     let selectedIds = state.classPeopleSelection[role];
     const query = normalizeSearch(classPeopleSearch.value);
     const selectedIdSet = new Set(selectedIds.map(Number));
     const selectedPeople = state.people.filter((person) => selectedIdSet.has(Number(person.id)));
     const blockedStudentIds = role === 'students'
-        ? new Set((state.classPeopleSelection.courseTeacherIds || []).map(Number))
+        ? new Set((state.classPeopleSelection.courseStaffIds || []).map(Number))
         : new Set();
 
     if (role === 'students' && blockedStudentIds.size > 0) {
@@ -865,10 +914,10 @@ function renderActiveClassPeopleChoices() {
     }
     const people = state.people.filter((person) => (
         normalizeSearch(person.name).includes(query)
-        && (role !== 'teachers' || !selectedIdSet.has(Number(person.id)))
+        && (role === 'students' || !selectedIdSet.has(Number(person.id)))
     ));
 
-    if (role === 'teachers') {
+    if (role !== 'students') {
         const selectedSection = selectedPeople.length > 0
             ? `
                 <div class="choice-group">
@@ -933,7 +982,7 @@ function syncVisibleClassPeopleChoices() {
     }
 
     const role = state.classPeopleSelection.role;
-    const container = role === 'teachers' ? teacherChoices : studentChoices;
+    const container = roleContainer(role);
     const visibleIds = Array.from(container.querySelectorAll('input[type="checkbox"]')).map((input) => Number(input.value));
     const checkedIds = checkedValues(container);
     const hiddenSelectedIds = state.classPeopleSelection[role].filter((id) => !visibleIds.includes(Number(id)));
@@ -941,19 +990,28 @@ function syncVisibleClassPeopleChoices() {
     state.classPeopleSelection[role] = Array.from(new Set([...hiddenSelectedIds, ...checkedIds]));
 }
 
-function hasClassRoleOverlap(studentIds, teacherIds) {
-    const teachers = new Set(teacherIds.map(Number));
+function hasClassRoleOverlap(selection) {
+    const seen = new Set();
 
-    return studentIds.some((id) => teachers.has(Number(id)));
+    return Object.keys(CLASS_ROLE_CONFIG).some((role) => (selection[role] || []).some((id) => {
+        const personId = Number(id);
+
+        if (seen.has(personId)) {
+            return true;
+        }
+
+        seen.add(personId);
+        return false;
+    }));
 }
 
-function hasCourseTeacherOverlap(courseTeacherIds = [], studentIds = []) {
-    const teachers = new Set(courseTeacherIds.map(Number));
+function hasCourseStaffOverlap(courseStaffIds = [], studentIds = []) {
+    const staff = new Set(courseStaffIds.map(Number));
 
-    return studentIds.some((id) => teachers.has(Number(id)));
+    return studentIds.some((id) => staff.has(Number(id)));
 }
 
-function teacherIdsForCourse(courseId) {
+function staffIdsForCourse(courseId) {
     const ids = new Set();
     const courseClassIds = new Set(
         state.classes
@@ -966,10 +1024,29 @@ function teacherIdsForCourse(courseId) {
             return;
         }
 
-        (people.teachers || []).forEach((personId) => ids.add(Number(personId)));
+        STAFF_CLASS_ROLES.forEach((role) => {
+            (people[role] || []).forEach((personId) => ids.add(Number(personId)));
+        });
     });
 
     return Array.from(ids);
+}
+
+function roleContainer(role) {
+    return document.querySelector(CLASS_ROLE_CONFIG[role].container);
+}
+
+function emptyClassPeople() {
+    return {
+        students: [],
+        teachers: [],
+        ambassadors: [],
+        directors: [],
+    };
+}
+
+function classPeopleFromSelection(selection) {
+    return Object.fromEntries(Object.keys(CLASS_ROLE_CONFIG).map((role) => [role, [...(selection[role] || [])]]));
 }
 
 function normalizeSearch(value) {
@@ -1663,15 +1740,64 @@ function showClassesForCourse(course) {
     showPage('classes');
 }
 
-function showPage(page) {
+function showPage(page, options = {}) {
+    const targetPage = pageAllowed(page) ? page : defaultPageForRole();
+
     document.querySelectorAll('.app-page').forEach((section) => {
-        section.classList.toggle('hidden', section.id !== `${page}Page`);
+        section.classList.toggle('hidden', section.id !== `${targetPage}Page`);
     });
 
     document.querySelectorAll('.nav-item[data-page]').forEach((button) => {
-        button.classList.toggle('active', button.dataset.page === page);
+        button.classList.toggle('active', button.dataset.page === targetPage);
     });
+
+    if (APP_ROUTES[targetPage]) {
+        const method = options.replace ? 'replaceState' : 'pushState';
+        history[method]({}, '', APP_ROUTES[targetPage]);
+    }
 }
+
+function pageFromLocation() {
+    return ROUTE_PAGES[window.location.pathname] || 'courses';
+}
+
+function pageAllowed(page) {
+    const role = state.user?.role || '';
+
+    if (role === 'admin') {
+        return Boolean(APP_ROUTES[page]);
+    }
+
+    if (role === 'secretaria') {
+        return page === 'secretaria';
+    }
+
+    if (['pedagogico', 'professor', 'embaixador', 'diretor'].includes(role)) {
+        return ['pedagogico', 'studentReports'].includes(page);
+    }
+
+    return page === 'courses';
+}
+
+function defaultPageForRole() {
+    const role = state.user?.role || '';
+
+    if (role === 'secretaria') {
+        return 'secretaria';
+    }
+
+    if (['pedagogico', 'professor', 'embaixador', 'diretor'].includes(role)) {
+        return 'pedagogico';
+    }
+
+    return 'courses';
+}
+
+window.addEventListener('popstate', () => {
+    if (state.token) {
+        showPage(pageFromLocation(), { replace: true });
+    }
+});
 
 async function api(path, options = {}) {
     const headers = {

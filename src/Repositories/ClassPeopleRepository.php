@@ -4,26 +4,38 @@ declare(strict_types=1);
 
 final class ClassPeopleRepository
 {
+    private const ROLE_TABLES = [
+        'students' => 'class_students',
+        'teachers' => 'class_teachers',
+        'ambassadors' => 'class_ambassadors',
+        'directors' => 'class_directors',
+    ];
+
+    private const STAFF_ROLES = ['teachers', 'ambassadors', 'directors'];
+
     public function get(int $classId): array
     {
-        return [
-            'students' => $this->peopleFor($classId, 'class_students'),
-            'teachers' => $this->peopleFor($classId, 'class_teachers'),
-        ];
+        $people = [];
+
+        foreach (self::ROLE_TABLES as $role => $table) {
+            $people[$role] = $this->peopleFor($classId, $table);
+        }
+
+        return $people;
     }
 
     public function groupedIds(): array
     {
         $grouped = [];
 
-        foreach (['students' => 'class_students', 'teachers' => 'class_teachers'] as $key => $table) {
+        foreach (self::ROLE_TABLES as $key => $table) {
             $rows = Database::connection()
                 ->query("SELECT class_id, person_id FROM {$table} ORDER BY class_id, person_id")
                 ->fetchAll();
 
             foreach ($rows as $row) {
                 $classId = (int) $row['class_id'];
-                $grouped[$classId] ??= ['students' => [], 'teachers' => []];
+                $grouped[$classId] ??= $this->emptyIds();
                 $grouped[$classId][$key][] = (int) $row['person_id'];
             }
         }
@@ -37,7 +49,7 @@ final class ClassPeopleRepository
         $teacherIds = $this->cleanIds($teacherIds);
 
         if (array_intersect($studentIds, $teacherIds) !== []) {
-            Response::error('A mesma pessoa nao pode ser aluno e professor na mesma classe.', 422);
+            Response::error('A mesma pessoa nao pode ocupar duas funcoes na mesma classe.', 422);
         }
 
         $class = (new ClassRepository())->find($classId);
@@ -65,39 +77,62 @@ final class ClassPeopleRepository
         }
 
         $current = $this->get($classId);
-        $currentStudentIds = array_map(fn (array $person): int => (int) $person['id'], $current['students']);
-        $currentTeacherIds = array_map(fn (array $person): int => (int) $person['id'], $current['teachers']);
+        $currentIds = $this->idsByRole($current);
 
-        if ($role === 'students') {
-            $studentIds = $personIds;
-            $teacherIds = $currentTeacherIds;
-            $table = 'class_students';
-        } elseif ($role === 'teachers') {
-            $studentIds = $currentStudentIds;
-            $teacherIds = $personIds;
-            $table = 'class_teachers';
-        } else {
+        if (!isset(self::ROLE_TABLES[$role])) {
             Response::error('Tipo de vinculo invalido.', 422);
         }
 
-        if (array_intersect($studentIds, $teacherIds) !== []) {
-            Response::error('A mesma pessoa nao pode ser aluno e professor na mesma classe.', 422);
+        $nextIds = $currentIds;
+        $nextIds[$role] = $personIds;
+
+        if ($this->hasRoleOverlap($nextIds)) {
+            Response::error('A mesma pessoa nao pode ocupar duas funcoes na mesma classe.', 422);
         }
 
-        $existingIds = $role === 'students' ? $currentStudentIds : $currentTeacherIds;
+        $existingIds = $currentIds[$role];
         $newIds = array_values(array_diff($personIds, $existingIds));
 
         $this->validatePeopleExist($newIds);
         $this->validateNoCourseConflict($classId, (int) $class['course_id'], $newIds);
 
         if (!$this->sameIds($existingIds, $personIds)) {
-            $this->syncTableChanges($table, $classId, $existingIds, $personIds);
+            $this->syncTableChanges(self::ROLE_TABLES[$role], $classId, $existingIds, $personIds);
         }
 
-        return [
-            'students' => $studentIds,
-            'teachers' => $teacherIds,
-        ];
+        return $nextIds;
+    }
+
+    public function staffClassIdsForUser(array $user): array
+    {
+        $personId = (int) ($user['person_id'] ?? 0);
+
+        if ($personId <= 0 || in_array($user['role'], ['admin', 'pedagogico', 'diretor'], true)) {
+            return [];
+        }
+
+        $tables = match ($user['role']) {
+            'professor' => ['class_teachers'],
+            'embaixador' => ['class_ambassadors'],
+            default => [],
+        };
+
+        if ($tables === []) {
+            return [];
+        }
+
+        $classIds = [];
+
+        foreach ($tables as $table) {
+            $stmt = Database::connection()->prepare("SELECT class_id FROM {$table} WHERE person_id = :person_id");
+            $stmt->execute(['person_id' => $personId]);
+
+            foreach ($stmt->fetchAll() as $row) {
+                $classIds[] = (int) $row['class_id'];
+            }
+        }
+
+        return array_values(array_unique($classIds));
     }
 
     private function peopleFor(int $classId, string $table): array
@@ -191,6 +226,44 @@ final class ClassPeopleRepository
         return $left === $right;
     }
 
+    private function emptyIds(): array
+    {
+        return [
+            'students' => [],
+            'teachers' => [],
+            'ambassadors' => [],
+            'directors' => [],
+        ];
+    }
+
+    private function idsByRole(array $people): array
+    {
+        $ids = $this->emptyIds();
+
+        foreach (array_keys(self::ROLE_TABLES) as $role) {
+            $ids[$role] = array_map(fn (array $person): int => (int) $person['id'], $people[$role] ?? []);
+        }
+
+        return $ids;
+    }
+
+    private function hasRoleOverlap(array $idsByRole): bool
+    {
+        $seen = [];
+
+        foreach ($idsByRole as $ids) {
+            foreach ($ids as $id) {
+                if (isset($seen[$id])) {
+                    return true;
+                }
+
+                $seen[$id] = true;
+            }
+        }
+
+        return false;
+    }
+
     private function cleanIds(array $ids): array
     {
         $ids = array_map('intval', $ids);
@@ -230,9 +303,16 @@ final class ClassPeopleRepository
                   FROM classes
                   LEFT JOIN class_students ON class_students.class_id = classes.id
                   LEFT JOIN class_teachers ON class_teachers.class_id = classes.id
+                  LEFT JOIN class_ambassadors ON class_ambassadors.class_id = classes.id
+                  LEFT JOIN class_directors ON class_directors.class_id = classes.id
                   WHERE classes.course_id = ?
                     AND classes.id <> ?
-                    AND (class_students.person_id = people.id OR class_teachers.person_id = people.id)
+                    AND (
+                        class_students.person_id = people.id
+                        OR class_teachers.person_id = people.id
+                        OR class_ambassadors.person_id = people.id
+                        OR class_directors.person_id = people.id
+                    )
               )
             ORDER BY people.name
             LIMIT 1

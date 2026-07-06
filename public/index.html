@@ -448,6 +448,8 @@
             </label>
             <div id="studentChoices" class="choice-list"></div>
             <div id="teacherChoices" class="choice-list hidden"></div>
+            <div id="ambassadorChoices" class="choice-list hidden"></div>
+            <div id="directorChoices" class="choice-list hidden"></div>
             <footer class="modal-actions">
                 <button type="button" class="secondary" id="cancelClassPeopleButton">Cancelar</button>
                 <button type="submit">Salvar</button>
@@ -482,6 +484,28 @@
                 Observacoes
                 <textarea name="notes" rows="4"></textarea>
             </label>
+            <section class="access-fields">
+                <p class="eyebrow">Acesso ao sistema</p>
+                <label>
+                    Perfil
+                    <select name="access_role">
+                        <option value="">Sem acesso</option>
+                        <option value="secretaria">Secretaria</option>
+                        <option value="professor">Professor</option>
+                        <option value="embaixador">Embaixador</option>
+                        <option value="diretor">Diretor da EBD</option>
+                        <option value="pedagogico">Pedagogico</option>
+                    </select>
+                </label>
+                <label>
+                    E-mail de login
+                    <input name="access_email" type="email" maxlength="160" placeholder="Pode ser o mesmo e-mail da pessoa">
+                </label>
+                <label>
+                    Senha
+                    <input name="access_password" type="password" minlength="6" placeholder="Preencha para criar ou trocar">
+                </label>
+            </section>
             <footer class="modal-actions">
                 <button type="button" class="secondary" id="cancelPersonButton">Cancelar</button>
                 <button type="submit">Salvar</button>

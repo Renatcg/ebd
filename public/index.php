@@ -66,8 +66,8 @@ function handleApi(string $path): void
                 'lesson_markers' => in_array($user['role'], ['admin', 'secretaria'], true)
                     ? (new LessonRepository())->markersForMonth($month)
                     : [],
-                'pedagogico_students' => in_array($user['role'], ['admin', 'pedagogico', 'professor'], true)
-                    ? (new StudentReportRepository())->students()
+                'pedagogico_students' => in_array($user['role'], pedagogicoRoles(), true)
+                    ? (new StudentReportRepository())->students($user)
                     : [],
                 'settings' => $user['role'] === 'admin'
                     ? $settings->publicSettings()
@@ -231,7 +231,7 @@ function handleApi(string $path): void
         }
     }
 
-    if (preg_match('#^/api/classes/(\d+)/people/(students|teachers)$#', $path, $matches) && $method === 'PUT') {
+    if (preg_match('#^/api/classes/(\d+)/people/(students|teachers|ambassadors|directors)$#', $path, $matches) && $method === 'PUT') {
         Auth::requireRole(['admin']);
         $id = (int) $matches[1];
         $role = (string) $matches[2];
@@ -278,34 +278,34 @@ function handleApi(string $path): void
     }
 
     if ($path === '/api/pedagogico/reports' && $method === 'GET') {
-        Auth::requireRole(['admin', 'pedagogico', 'professor']);
+        $user = Auth::requireRole(pedagogicoRoles());
         $classId = isset($_GET['class_id']) ? (int) $_GET['class_id'] : null;
         $studentId = isset($_GET['student_id']) ? (int) $_GET['student_id'] : null;
-        Response::json(['data' => (new StudentReportRepository())->all($classId, $studentId)]);
+        Response::json(['data' => (new StudentReportRepository())->all($classId, $studentId, $user)]);
     }
 
     if ($path === '/api/pedagogico/students' && $method === 'GET') {
-        Auth::requireRole(['admin', 'pedagogico', 'professor']);
-        Response::json(['data' => (new StudentReportRepository())->students()]);
+        $user = Auth::requireRole(pedagogicoRoles());
+        Response::json(['data' => (new StudentReportRepository())->students($user)]);
     }
 
     if (preg_match('#^/api/pedagogico/students/(\d+)/classes$#', $path, $matches) && $method === 'GET') {
-        Auth::requireRole(['admin', 'pedagogico', 'professor']);
-        Response::json(['data' => (new StudentReportRepository())->classesForStudent((int) $matches[1])]);
+        $user = Auth::requireRole(pedagogicoRoles());
+        Response::json(['data' => (new StudentReportRepository())->classesForStudent((int) $matches[1], $user)]);
     }
 
     if (preg_match('#^/api/pedagogico/students/(\d+)/opinion$#', $path, $matches) && $method === 'GET') {
-        $user = Auth::requireRole(['admin', 'pedagogico', 'professor']);
+        $user = Auth::requireRole(['admin', 'pedagogico', 'diretor']);
         Response::json(['data' => (new StudentReportRepository())->opinionForStudent((int) $matches[1], $user)]);
     }
 
     if (preg_match('#^/api/pedagogico/students/(\d+)/opinions$#', $path, $matches) && $method === 'GET') {
-        Auth::requireRole(['admin', 'pedagogico', 'professor']);
+        Auth::requireRole(pedagogicoRoles());
         Response::json(['data' => (new StudentOpinionRepository())->allForStudent((int) $matches[1])]);
     }
 
     if ($path === '/api/pedagogico/reports' && $method === 'POST') {
-        $user = Auth::requireRole(['admin', 'pedagogico', 'professor']);
+        $user = Auth::requireRole(pedagogicoRoles());
         validateStudentReportInput($input);
         Response::json(['data' => (new StudentReportRepository())->create($input, $user)], 201);
     }
@@ -315,9 +315,9 @@ function handleApi(string $path): void
         $repository = new StudentReportRepository();
 
         if ($method === 'PUT') {
-            Auth::requireRole(['admin', 'pedagogico', 'professor']);
+            $user = Auth::requireRole(pedagogicoRoles());
             validateStudentReportInput($input);
-            $report = $repository->update($id, $input);
+            $report = $repository->update($id, $input, $user);
 
             if ($report === null) {
                 Response::error('Relatorio nao encontrado.', 404);
@@ -327,18 +327,18 @@ function handleApi(string $path): void
         }
 
         if ($method === 'DELETE') {
-            Auth::requireRole(['admin', 'pedagogico']);
+            Auth::requireRole(['admin', 'pedagogico', 'diretor']);
             Response::json(['deleted' => $repository->delete($id)]);
         }
     }
 
     if ($path === '/api/pedagogico/transcribe' && $method === 'POST') {
-        Auth::requireRole(['admin', 'pedagogico', 'professor']);
+        Auth::requireRole(pedagogicoRoles());
         Response::json(['text' => (new OpenAITranscriptionService())->transcribe($_FILES['audio'] ?? [])]);
     }
 
     if ($path === '/api/pedagogico/transcribe/status' && $method === 'GET') {
-        Auth::requireRole(['admin', 'pedagogico', 'professor']);
+        Auth::requireRole(pedagogicoRoles());
         Response::json([
             'configured' => ((new SettingsRepository())->get('openai_api_key') ?: getenv('OPENAI_API_KEY') ?: '') !== '',
             'curl' => extension_loaded('curl'),
@@ -409,6 +409,11 @@ function validateCourse(array $input): void
     if (trim((string) ($input['name'] ?? '')) === '') {
         Response::error('Informe o nome do curso.', 422);
     }
+}
+
+function pedagogicoRoles(): array
+{
+    return ['admin', 'pedagogico', 'professor', 'embaixador', 'diretor'];
 }
 
 function validateClassInput(array $input): void

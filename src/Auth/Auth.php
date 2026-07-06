@@ -79,6 +79,7 @@ final class Auth
             'name' => $user['name'],
             'email' => $user['email'],
             'role' => $user['role'],
+            'person_id' => isset($user['person_id']) ? (int) $user['person_id'] : null,
         ];
     }
 }

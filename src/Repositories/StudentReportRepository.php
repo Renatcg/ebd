@@ -4,30 +4,65 @@ declare(strict_types=1);
 
 final class StudentReportRepository
 {
-    public function students(): array
+    public function students(?array $user = null): array
     {
-        return Database::connection()
-            ->query(
-                'SELECT people.id, people.name, people.email, people.phone, COUNT(class_students.class_id) AS class_count
-                 FROM people
-                 INNER JOIN class_students ON class_students.person_id = people.id
-                 GROUP BY people.id, people.name, people.email, people.phone
-                 ORDER BY people.name'
-            )
-            ->fetchAll();
+        $classIds = $this->visibleClassIds($user);
+        $where = '';
+        $params = [];
+
+        if ($classIds !== null) {
+            if ($classIds === []) {
+                return [];
+            }
+
+            $placeholders = implode(',', array_map(fn (int $index): string => ':class_' . $index, array_keys($classIds)));
+            $where = " WHERE class_students.class_id IN ({$placeholders})";
+            foreach ($classIds as $index => $visibleClassId) {
+                $params['class_' . $index] = $visibleClassId;
+            }
+        }
+
+        $stmt = Database::connection()->prepare(
+            "SELECT people.id, people.name, people.email, people.phone, COUNT(class_students.class_id) AS class_count
+             FROM people
+             INNER JOIN class_students ON class_students.person_id = people.id
+             {$where}
+             GROUP BY people.id, people.name, people.email, people.phone
+             ORDER BY people.name"
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
     }
 
-    public function classesForStudent(int $studentId): array
+    public function classesForStudent(int $studentId, ?array $user = null): array
     {
+        $classIds = $this->visibleClassIds($user);
+        $classFilter = '';
+        $params = ['student_id' => $studentId];
+
+        if ($classIds !== null) {
+            if ($classIds === []) {
+                return [];
+            }
+
+            $placeholders = implode(',', array_map(fn (int $index): string => ':class_' . $index, array_keys($classIds)));
+            $classFilter = " AND classes.id IN ({$placeholders})";
+            foreach ($classIds as $index => $visibleClassId) {
+                $params['class_' . $index] = $visibleClassId;
+            }
+        }
+
         $stmt = Database::connection()->prepare(
-            'SELECT classes.id, classes.name, classes.course_id, courses.name AS course_name
+            "SELECT classes.id, classes.name, classes.course_id, courses.name AS course_name
              FROM class_students
              INNER JOIN classes ON classes.id = class_students.class_id
              INNER JOIN courses ON courses.id = classes.course_id
              WHERE class_students.person_id = :student_id
-             ORDER BY courses.name, classes.name'
+             {$classFilter}
+             ORDER BY courses.name, classes.name"
         );
-        $stmt->execute(['student_id' => $studentId]);
+        $stmt->execute($params);
 
         return $stmt->fetchAll();
     }
@@ -40,8 +75,8 @@ final class StudentReportRepository
             Response::error('Aluno nao encontrado.', 404);
         }
 
-        $classes = $this->classesForStudent($studentId);
-        $reports = array_reverse($this->all(null, $studentId));
+        $classes = $this->classesForStudent($studentId, $author);
+        $reports = array_reverse($this->all(null, $studentId, $author));
         $lines = [];
         $lines[] = 'Parecer pedagogico';
         $lines[] = '';
@@ -93,10 +128,23 @@ final class StudentReportRepository
         ];
     }
 
-    public function all(?int $classId = null, ?int $studentId = null): array
+    public function all(?int $classId = null, ?int $studentId = null, ?array $user = null): array
     {
         $where = [];
         $params = [];
+        $classIds = $this->visibleClassIds($user);
+
+        if ($classIds !== null) {
+            if ($classIds === []) {
+                return [];
+            }
+
+            $placeholders = implode(',', array_map(fn (int $index): string => ':visible_class_' . $index, array_keys($classIds)));
+            $where[] = "student_reports.class_id IN ({$placeholders})";
+            foreach ($classIds as $index => $visibleClassId) {
+                $params['visible_class_' . $index] = $visibleClassId;
+            }
+        }
 
         if ($classId !== null && $classId > 0) {
             $where[] = 'student_reports.class_id = :class_id';
@@ -133,7 +181,7 @@ final class StudentReportRepository
 
     public function create(array $data, array $author): array
     {
-        $this->validateStudentInClass((int) $data['student_person_id'], (int) $data['class_id']);
+        $this->validateStudentInClass((int) $data['student_person_id'], (int) $data['class_id'], $author);
 
         $stmt = Database::connection()->prepare(
             'INSERT INTO student_reports (student_person_id, class_id, author_user_id, title, body, report_date)
@@ -151,13 +199,13 @@ final class StudentReportRepository
         return $this->find((int) Database::lastInsertId('student_reports'));
     }
 
-    public function update(int $id, array $data): ?array
+    public function update(int $id, array $data, array $author): ?array
     {
-        if ($this->find($id) === null) {
+        if ($this->find($id, $author) === null) {
             return null;
         }
 
-        $this->validateStudentInClass((int) $data['student_person_id'], (int) $data['class_id']);
+        $this->validateStudentInClass((int) $data['student_person_id'], (int) $data['class_id'], $author);
 
         $stmt = Database::connection()->prepare(
             'UPDATE student_reports
@@ -174,7 +222,7 @@ final class StudentReportRepository
             'report_date' => trim($data['report_date']),
         ]);
 
-        return $this->find($id);
+        return $this->find($id, $author);
     }
 
     public function delete(int $id): bool
@@ -185,9 +233,9 @@ final class StudentReportRepository
         return $stmt->rowCount() > 0;
     }
 
-    private function find(int $id): ?array
+    private function find(int $id, ?array $user = null): ?array
     {
-        $reports = $this->all();
+        $reports = $this->all(null, null, $user);
 
         foreach ($reports as $report) {
             if ((int) $report['id'] === $id) {
@@ -198,8 +246,14 @@ final class StudentReportRepository
         return null;
     }
 
-    private function validateStudentInClass(int $studentId, int $classId): void
+    private function validateStudentInClass(int $studentId, int $classId, array $user): void
     {
+        $visibleClassIds = $this->visibleClassIds($user);
+
+        if ($visibleClassIds !== null && !in_array($classId, $visibleClassIds, true)) {
+            Response::error('Voce nao tem acesso a esta classe.', 403);
+        }
+
         $stmt = Database::connection()->prepare(
             'SELECT COUNT(*) FROM class_students WHERE person_id = :person_id AND class_id = :class_id'
         );
@@ -211,5 +265,18 @@ final class StudentReportRepository
         if ((int) $stmt->fetchColumn() === 0) {
             Response::error('Selecione um aluno matriculado nesta classe.', 422);
         }
+    }
+
+    private function visibleClassIds(?array $user): ?array
+    {
+        if ($user === null || in_array($user['role'], ['admin', 'pedagogico', 'diretor'], true)) {
+            return null;
+        }
+
+        if (!in_array($user['role'], ['professor', 'embaixador'], true)) {
+            return [];
+        }
+
+        return (new ClassPeopleRepository())->staffClassIdsForUser($user);
     }
 }

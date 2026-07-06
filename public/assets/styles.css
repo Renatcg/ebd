@@ -194,7 +194,7 @@ p {
 }
 
 .class-row {
-    grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 1.8fr) 120px 184px;
+    grid-template-columns: minmax(160px, 1.2fr) minmax(180px, 1.8fr) 120px 248px;
 }
 
 .person-row {
@@ -538,6 +538,14 @@ dialog::backdrop {
     color: var(--ink);
     font-weight: 900;
     text-align: center;
+}
+
+.access-fields {
+    border-top: 1px solid var(--line);
+    display: grid;
+    gap: 12px;
+    margin-top: 4px;
+    padding-top: 16px;
 }
 
 .choice-group {

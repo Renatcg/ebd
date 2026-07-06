@@ -39,9 +39,7 @@ final class Database
                 self::$connection->exec('PRAGMA foreign_keys = ON');
             }
 
-            if ($isNewDatabase || self::$driver === 'pgsql') {
-                self::initialize(self::$connection);
-            }
+            self::initialize(self::$connection);
         }
 
         return self::$connection;
@@ -70,6 +68,7 @@ final class Database
         $schemaFile = self::$driver === 'pgsql' ? 'schema.postgres.sql' : 'schema.sql';
         $schemaPath = dirname(__DIR__, 2) . '/database/' . $schemaFile;
         $connection->exec((string) file_get_contents($schemaPath));
+        self::migrate($connection);
 
         $stmt = $connection->prepare('SELECT COUNT(*) FROM users WHERE email = :email');
         $stmt->execute(['email' => 'admin@ebd.local']);
@@ -88,6 +87,124 @@ final class Database
             'password_hash' => password_hash('admin123', PASSWORD_DEFAULT),
             'role' => 'admin',
         ]);
+    }
+
+    private static function migrate(PDO $connection): void
+    {
+        self::migrateUsers($connection);
+        self::createRoleTable($connection, 'class_ambassadors');
+        self::createRoleTable($connection, 'class_directors');
+    }
+
+    private static function migrateUsers(PDO $connection): void
+    {
+        if (self::$driver === 'pgsql') {
+            $connection->exec('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
+            $connection->exec(
+                "ALTER TABLE users ADD CONSTRAINT users_role_check
+                 CHECK (role IN ('admin', 'secretaria', 'professor', 'pedagogico', 'embaixador', 'diretor'))"
+            );
+
+            if (!self::columnExists($connection, 'users', 'person_id')) {
+                $connection->exec('ALTER TABLE users ADD COLUMN person_id INTEGER UNIQUE');
+            }
+
+            return;
+        }
+
+        if (!self::columnExists($connection, 'users', 'person_id')) {
+            $connection->exec('ALTER TABLE users ADD COLUMN person_id INTEGER');
+        }
+
+        $rows = $connection->query("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'")->fetch();
+        $sql = (string) ($rows['sql'] ?? '');
+
+        if (str_contains($sql, "'embaixador'") && str_contains($sql, "'diretor'")) {
+            return;
+        }
+
+        $connection->exec('PRAGMA foreign_keys = OFF');
+        $connection->beginTransaction();
+
+        try {
+            $connection->exec('ALTER TABLE users RENAME TO users_old');
+            $connection->exec(
+                "CREATE TABLE users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL CHECK (role IN ('admin', 'secretaria', 'professor', 'pedagogico', 'embaixador', 'diretor')),
+                    person_id INTEGER UNIQUE,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )"
+            );
+            $connection->exec(
+                'INSERT INTO users (id, name, email, password_hash, role, person_id, created_at, updated_at)
+                 SELECT id, name, email, password_hash, role, person_id, created_at, updated_at FROM users_old'
+            );
+            $connection->exec('DROP TABLE users_old');
+            $connection->commit();
+        } catch (Throwable $exception) {
+            $connection->rollBack();
+            throw $exception;
+        } finally {
+            $connection->exec('PRAGMA foreign_keys = ON');
+        }
+    }
+
+    private static function createRoleTable(PDO $connection, string $table): void
+    {
+        if (self::$driver === 'pgsql') {
+            $connection->exec(
+                "CREATE TABLE IF NOT EXISTS {$table} (
+                    id SERIAL PRIMARY KEY,
+                    class_id INTEGER NOT NULL,
+                    person_id INTEGER NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+                    FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE,
+                    UNIQUE (class_id, person_id)
+                )"
+            );
+        } else {
+            $connection->exec(
+                "CREATE TABLE IF NOT EXISTS {$table} (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    class_id INTEGER NOT NULL,
+                    person_id INTEGER NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+                    FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE,
+                    UNIQUE (class_id, person_id)
+                )"
+            );
+        }
+
+        $connection->exec("CREATE INDEX IF NOT EXISTS idx_{$table}_person ON {$table}(person_id)");
+    }
+
+    private static function columnExists(PDO $connection, string $table, string $column): bool
+    {
+        if (self::$driver === 'pgsql') {
+            $stmt = $connection->prepare(
+                'SELECT COUNT(*) FROM information_schema.columns WHERE table_name = :table AND column_name = :column'
+            );
+            $stmt->execute(['table' => $table, 'column' => $column]);
+
+            return (int) $stmt->fetchColumn() > 0;
+        }
+
+        $stmt = $connection->query("PRAGMA table_info({$table})");
+
+        foreach ($stmt->fetchAll() as $row) {
+            if (($row['name'] ?? '') === $column) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function postgresDsn(string $url): string
