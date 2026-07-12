@@ -340,7 +340,7 @@ p {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
 }
 
 .calendar-toolbar input {
@@ -352,7 +352,7 @@ p {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--panel);
-    margin-bottom: 18px;
+    margin-bottom: 10px;
 }
 
 .calendar-weekdays,
@@ -362,7 +362,7 @@ p {
 }
 
 .calendar-weekdays {
-    min-height: 38px;
+    min-height: 30px;
     align-items: center;
     background: #edf1f7;
     color: var(--muted);
@@ -372,10 +372,10 @@ p {
 }
 
 .calendar-cell {
-    min-height: 132px;
+    min-height: 104px;
     border-top: 1px solid var(--line);
     border-right: 1px solid var(--line);
-    padding: 10px;
+    padding: 6px;
 }
 
 .calendar-cell:nth-child(7n) {
@@ -384,7 +384,7 @@ p {
 
 .calendar-cell strong {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 5px;
 }
 
 .calendar-cell.sunday {
@@ -398,20 +398,20 @@ p {
 .calendar-class-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .calendar-class-button {
     display: inline-grid;
     grid-auto-flow: column;
-    min-width: 54px;
-    min-height: 30px;
+    min-width: 36px;
+    min-height: 22px;
     place-items: center;
     border: 1px solid var(--line);
     background: #fff;
     color: var(--ink);
-    padding: 0 7px;
-    font-size: 11px;
+    padding: 0 5px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0;
 }
@@ -429,9 +429,9 @@ p {
 
 .calendar-class-button.saved::after {
     content: "";
-    width: 6px;
-    height: 6px;
-    margin-left: 4px;
+    width: 4px;
+    height: 4px;
+    margin-left: 3px;
     border-radius: 999px;
     background: #2f855a;
 }
@@ -1437,7 +1437,7 @@ dialog::backdrop {
     }
 
     .calendar-cell {
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         border: 1px solid var(--line);
         border-radius: 10px;
         background: var(--panel);
@@ -1449,9 +1449,9 @@ dialog::backdrop {
     }
 
     .calendar-class-button {
-        min-width: 64px;
-        min-height: 36px;
-        font-size: 12px;
+        min-width: 42px;
+        min-height: 26px;
+        font-size: 11px;
     }
 
     dialog {

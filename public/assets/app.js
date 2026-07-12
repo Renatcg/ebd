@@ -1284,13 +1284,13 @@ function shortLabelFor(value) {
     const words = text.split(' ');
 
     if (words.length === 1) {
-        return words[0].slice(0, 5).toUpperCase();
+        return words[0].slice(0, 3).toUpperCase();
     }
 
     return words
-        .map((word) => word.slice(0, 3))
+        .map((word) => word.slice(0, 1))
         .join('')
-        .slice(0, 6)
+        .slice(0, 3)
         .toUpperCase();
 }
 
@@ -1839,7 +1839,7 @@ function showPage(page, options = {}) {
 }
 
 function pageFromLocation() {
-    return ROUTE_PAGES[window.location.pathname] || 'courses';
+    return ROUTE_PAGES[window.location.pathname] || defaultPageForRole();
 }
 
 function pageAllowed(page) {
@@ -1871,7 +1871,7 @@ function defaultPageForRole() {
         return 'pedagogico';
     }
 
-    return 'courses';
+    return 'secretaria';
 }
 
 window.addEventListener('popstate', () => {
