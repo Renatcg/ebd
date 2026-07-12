@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/src/Core/Config.php';
+require_once dirname(__DIR__) . '/src/Core/Performance.php';
+Performance::start();
 require_once dirname(__DIR__) . '/src/Core/Database.php';
 require_once dirname(__DIR__) . '/src/Core/Response.php';
 require_once dirname(__DIR__) . '/src/Auth/Jwt.php';
@@ -54,7 +56,6 @@ function handleApi(string $path): void
     if ($path === '/api/bootstrap' && $method === 'GET') {
         $user = Auth::requireUser();
         $month = trim((string) ($_GET['month'] ?? date('Y-m')));
-        $settings = new SettingsRepository();
         $shouldLoadPedagogico = in_array($user['role'], ['pedagogico', 'professor', 'embaixador', 'diretor'], true);
 
         Response::json([
@@ -73,9 +74,7 @@ function handleApi(string $path): void
                     ? (new StudentReportRepository())->students($user)
                     : [],
                 'pedagogico_students_loaded' => $shouldLoadPedagogico,
-                'settings' => $user['role'] === 'admin'
-                    ? $settings->publicSettings()
-                    : $settings->branding(),
+                'settings' => [],
             ],
         ]);
     }

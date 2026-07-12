@@ -34,6 +34,7 @@ const state = {
     classPeopleSelection: null,
     pedagogicoStudents: [],
     pedagogicoStudentsLoaded: false,
+    settingsLoaded: false,
     selectedStudent: null,
     selectedStudentClasses: [],
     mediaRecorder: null,
@@ -454,6 +455,7 @@ async function enterApp(initialData = null) {
     applyInitialData(response);
     showPage(pageFromLocation(), { replace: true });
     appView.classList.remove('hidden');
+    refreshBranding();
     queueExistingNameNormalization();
 }
 
@@ -1740,6 +1742,7 @@ async function loadSettings() {
     }
 
     renderSettings(response.data);
+    state.settingsLoaded = true;
 }
 
 function renderSettings(settings) {
@@ -1938,6 +1941,10 @@ function showPage(page, options = {}) {
 
     if (targetPage === 'pedagogico' && !state.pedagogicoStudentsLoaded) {
         loadPedagogicoStudents();
+    }
+
+    if (targetPage === 'settings' && !state.settingsLoaded) {
+        loadSettings();
     }
 }
 

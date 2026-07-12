@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+if (!class_exists('Performance')) {
+    require_once __DIR__ . '/Performance.php';
+}
+
 final class Database
 {
     private const MIGRATION_VERSION = '2026-07-12-2';
@@ -17,11 +21,11 @@ final class Database
 
             if ($databaseUrl !== null) {
                 self::$driver = 'pgsql';
-                self::$connection = new PDO(
+                self::$connection = Performance::measure('db_connect_ms', fn (): PDO => new PDO(
                     self::postgresDsn($databaseUrl),
                     self::postgresUser($databaseUrl),
                     self::postgresPassword($databaseUrl)
-                );
+                ));
             } else {
                 self::$driver = 'sqlite';
                 $databasePath = Config::databasePath();
@@ -31,7 +35,7 @@ final class Database
                     mkdir(dirname($databasePath), 0775, true);
                 }
 
-                self::$connection = new PDO('sqlite:' . $databasePath);
+                self::$connection = Performance::measure('db_connect_ms', fn (): PDO => new PDO('sqlite:' . $databasePath));
             }
 
             self::$connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -41,7 +45,7 @@ final class Database
                 self::$connection->exec('PRAGMA foreign_keys = ON');
             }
 
-            self::initialize(self::$connection, $isNewDatabase);
+            Performance::measure('db_initialize_ms', fn () => self::initialize(self::$connection, $isNewDatabase));
         }
 
         return self::$connection;
@@ -69,19 +73,19 @@ final class Database
     {
         if (self::$driver === 'pgsql') {
             if (!self::tableExists($connection, 'users') || !self::tableExists($connection, 'app_settings')) {
-                self::loadSchema($connection);
+                Performance::measure('db_schema_ms', fn () => self::loadSchema($connection));
             }
 
             if (self::migrationVersion($connection) !== self::MIGRATION_VERSION) {
-                self::migrate($connection);
+                Performance::measure('db_migrate_ms', fn () => self::migrate($connection));
                 self::setMigrationVersion($connection, self::MIGRATION_VERSION);
             }
         } else {
             if ($isNewDatabase) {
-                self::loadSchema($connection);
+                Performance::measure('db_schema_ms', fn () => self::loadSchema($connection));
             }
 
-            self::migrate($connection);
+            Performance::measure('db_migrate_ms', fn () => self::migrate($connection));
         }
 
         $stmt = $connection->prepare('SELECT COUNT(*) FROM users WHERE email = :email');
