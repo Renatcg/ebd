@@ -98,11 +98,26 @@ final class Database
     private static function migrateUsers(PDO $connection): void
     {
         if (self::$driver === 'pgsql') {
-            $connection->exec('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
-            $connection->exec(
-                "ALTER TABLE users ADD CONSTRAINT users_role_check
-                 CHECK (role IN ('admin', 'secretaria', 'professor', 'pedagogico', 'embaixador', 'diretor'))"
-            );
+            $constraint = self::constraintDefinition($connection, 'users', 'users_role_check');
+
+            if (
+                $constraint === null
+                || !str_contains($constraint, "'embaixador'::text")
+                || !str_contains($constraint, "'diretor'::text")
+            ) {
+                $connection->exec('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
+
+                try {
+                    $connection->exec(
+                        "ALTER TABLE users ADD CONSTRAINT users_role_check
+                         CHECK (role IN ('admin', 'secretaria', 'professor', 'pedagogico', 'embaixador', 'diretor'))"
+                    );
+                } catch (PDOException $exception) {
+                    if ($exception->getCode() !== '42710') {
+                        throw $exception;
+                    }
+                }
+            }
 
             if (!self::columnExists($connection, 'users', 'person_id')) {
                 $connection->exec('ALTER TABLE users ADD COLUMN person_id INTEGER UNIQUE');
@@ -204,6 +219,21 @@ final class Database
         }
 
         return false;
+    }
+
+    private static function constraintDefinition(PDO $connection, string $table, string $constraint): ?string
+    {
+        $stmt = $connection->prepare(
+            "SELECT pg_get_constraintdef(c.oid)
+             FROM pg_constraint c
+             INNER JOIN pg_class t ON t.oid = c.conrelid
+             WHERE t.relname = :table AND c.conname = :constraint
+             LIMIT 1"
+        );
+        $stmt->execute(['table' => $table, 'constraint' => $constraint]);
+        $definition = $stmt->fetchColumn();
+
+        return is_string($definition) ? $definition : null;
     }
 
     private static function postgresDsn(string $url): string
