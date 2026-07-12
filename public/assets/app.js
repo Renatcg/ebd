@@ -454,7 +454,6 @@ async function enterApp(initialData = null) {
     applyInitialData(response);
     showPage(pageFromLocation(), { replace: true });
     appView.classList.remove('hidden');
-    scheduleAdminPreload();
     queueExistingNameNormalization();
 }
 
@@ -1138,6 +1137,9 @@ async function loadLessonWorkArea() {
         return;
     }
 
+    const classItem = state.classes.find((item) => Number(item.id) === Number(lessonClass.value));
+    renderLessonLoading(classItem);
+
     const params = new URLSearchParams({
         class_id: lessonClass.value,
         lesson_date: lessonDate.value,
@@ -1145,12 +1147,29 @@ async function loadLessonWorkArea() {
     const response = await api(`/api/secretaria/lesson?${params.toString()}`);
 
     if (response.error) {
+        lessonForm.querySelector('button[type="submit"]').disabled = true;
         alert(response.error);
         return;
     }
 
     state.lessonWorkArea = response.data;
     renderLessonWorkArea(response.data);
+}
+
+function renderLessonLoading(classItem = null) {
+    lessonMessage.classList.add('hidden');
+    selectedLessonLabel.textContent = `${formatDateLabel(lessonDate.value)} - ${classItem?.course_name || 'Curso'} / ${classItem?.name || 'Classe'}`;
+    lessonForm.elements.title.value = '';
+    lessonForm.elements.notes.value = '';
+    lessonForm.elements.teacher_person_id.innerHTML = '<option>Carregando...</option>';
+    attendanceRows.innerHTML = '';
+    emptyAttendance.textContent = 'Carregando chamada...';
+    emptyAttendance.classList.remove('hidden');
+    lessonForm.querySelector('button[type="submit"]').disabled = true;
+
+    if (!lessonModal.open) {
+        lessonModal.showModal();
+    }
 }
 
 function renderLessonWorkArea(data) {
@@ -1167,6 +1186,7 @@ function renderLessonWorkArea(data) {
     }
 
     attendanceRows.innerHTML = '';
+    emptyAttendance.textContent = 'Nenhum aluno vinculado a esta classe.';
     emptyAttendance.classList.toggle('hidden', data.students.length > 0);
 
     data.students.forEach((student) => {
@@ -1183,7 +1203,11 @@ function renderLessonWorkArea(data) {
         attendanceRows.appendChild(row);
     });
 
-    lessonModal.showModal();
+    lessonForm.querySelector('button[type="submit"]').disabled = false;
+
+    if (!lessonModal.open) {
+        lessonModal.showModal();
+    }
 }
 
 function readAttendanceRows() {
@@ -1773,17 +1797,6 @@ function queueExistingNameNormalization() {
             await Promise.all(reloads);
         }
     }, 5000);
-}
-
-function scheduleAdminPreload() {
-    if (state.user?.role !== 'admin') {
-        return;
-    }
-
-    window.setTimeout(() => {
-        ensureClassPeopleLoaded();
-        ensurePeopleLoaded({ render: false });
-    }, 650);
 }
 
 function renderLogoPreview(logoData) {

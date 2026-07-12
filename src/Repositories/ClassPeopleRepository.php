@@ -14,10 +14,16 @@ final class ClassPeopleRepository
 
     public function get(int $classId): array
     {
-        $people = [];
+        return $this->getRoles($classId, array_keys(self::ROLE_TABLES));
+    }
 
-        foreach (self::ROLE_TABLES as $role => $table) {
-            $people[$role] = $this->peopleFor($classId, $table);
+    public function getRoles(int $classId, array $roles): array
+    {
+        $people = [];
+        $roles = array_values(array_intersect(array_keys(self::ROLE_TABLES), $roles));
+
+        foreach ($roles as $role) {
+            $people[$role] = $this->peopleFor($classId, self::ROLE_TABLES[$role]);
         }
 
         return $people;

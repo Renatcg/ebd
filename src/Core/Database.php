@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 final class Database
 {
+    private const MIGRATION_VERSION = '2026-07-12-2';
+
     private static ?PDO $connection = null;
     private static string $driver = 'sqlite';
 
@@ -39,7 +41,7 @@ final class Database
                 self::$connection->exec('PRAGMA foreign_keys = ON');
             }
 
-            self::initialize(self::$connection);
+            self::initialize(self::$connection, $isNewDatabase);
         }
 
         return self::$connection;
@@ -63,12 +65,24 @@ final class Database
         return (int) $connection->lastInsertId();
     }
 
-    private static function initialize(PDO $connection): void
+    private static function initialize(PDO $connection, bool $isNewDatabase): void
     {
-        $schemaFile = self::$driver === 'pgsql' ? 'schema.postgres.sql' : 'schema.sql';
-        $schemaPath = dirname(__DIR__, 2) . '/database/' . $schemaFile;
-        $connection->exec((string) file_get_contents($schemaPath));
-        self::migrate($connection);
+        if (self::$driver === 'pgsql') {
+            if (!self::tableExists($connection, 'users') || !self::tableExists($connection, 'app_settings')) {
+                self::loadSchema($connection);
+            }
+
+            if (self::migrationVersion($connection) !== self::MIGRATION_VERSION) {
+                self::migrate($connection);
+                self::setMigrationVersion($connection, self::MIGRATION_VERSION);
+            }
+        } else {
+            if ($isNewDatabase) {
+                self::loadSchema($connection);
+            }
+
+            self::migrate($connection);
+        }
 
         $stmt = $connection->prepare('SELECT COUNT(*) FROM users WHERE email = :email');
         $stmt->execute(['email' => 'admin@ebd.local']);
@@ -93,6 +107,13 @@ final class Database
     {
         self::migrateUsers($connection);
         self::createRoleTable($connection, 'class_ambassadors');
+    }
+
+    private static function loadSchema(PDO $connection): void
+    {
+        $schemaFile = self::$driver === 'pgsql' ? 'schema.postgres.sql' : 'schema.sql';
+        $schemaPath = dirname(__DIR__, 2) . '/database/' . $schemaFile;
+        $connection->exec((string) file_get_contents($schemaPath));
     }
 
     private static function migrateUsers(PDO $connection): void
@@ -219,6 +240,57 @@ final class Database
         }
 
         return false;
+    }
+
+    private static function tableExists(PDO $connection, string $table): bool
+    {
+        if (self::$driver === 'pgsql') {
+            $stmt = $connection->prepare(
+                'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = :table'
+            );
+            $stmt->execute(['table' => $table]);
+
+            return (int) $stmt->fetchColumn() > 0;
+        }
+
+        $stmt = $connection->prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = :table");
+        $stmt->execute(['table' => $table]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    private static function migrationVersion(PDO $connection): ?string
+    {
+        if (!self::tableExists($connection, 'app_settings')) {
+            return null;
+        }
+
+        $stmt = $connection->prepare("SELECT value FROM app_settings WHERE key = 'schema_migration_version'");
+        $stmt->execute();
+        $value = $stmt->fetchColumn();
+
+        return is_string($value) ? $value : null;
+    }
+
+    private static function setMigrationVersion(PDO $connection, string $version): void
+    {
+        if (self::$driver === 'pgsql') {
+            $stmt = $connection->prepare(
+                "INSERT INTO app_settings (key, value, updated_at)
+                 VALUES ('schema_migration_version', :version, CURRENT_TIMESTAMP)
+                 ON CONFLICT (key) DO UPDATE
+                 SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP"
+            );
+        } else {
+            $stmt = $connection->prepare(
+                "INSERT INTO app_settings (key, value, updated_at)
+                 VALUES ('schema_migration_version', :version, CURRENT_TIMESTAMP)
+                 ON CONFLICT(key) DO UPDATE
+                 SET value = excluded.value, updated_at = CURRENT_TIMESTAMP"
+            );
+        }
+
+        $stmt->execute(['version' => $version]);
     }
 
     private static function constraintDefinition(PDO $connection, string $table, string $constraint): ?string

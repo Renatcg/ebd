@@ -36,7 +36,7 @@ final class LessonRepository
             Response::error('Classe nao encontrada.', 404);
         }
 
-        $people = (new ClassPeopleRepository())->get($classId);
+        $people = (new ClassPeopleRepository())->getRoles($classId, ['students', 'teachers']);
         $lesson = $this->findByClassAndDate($classId, $lessonDate);
         $attendance = [];
 
