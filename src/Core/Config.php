@@ -6,7 +6,12 @@ final class Config
 {
     public static function databaseUrl(): ?string
     {
-        $url = getenv('DATABASE_URL')
+        $url = getenv('NEON_EBD_URL')
+            ?: getenv('NEON_EBD_DATABASE_URL')
+            ?: getenv('NEON_EBD_POSTGRES_URL')
+            ?: getenv('NEON_EBD_POSTGRES_PRISMA_URL')
+            ?: getenv('NEON_EBD_POSTGRES_URL_NON_POOLING')
+            ?: getenv('DATABASE_URL')
             ?: getenv('POSTGRES_URL_NON_POOLING')
             ?: getenv('POSTGRES_URL')
             ?: getenv('POSTGRES_PRISMA_URL')
