@@ -1,4 +1,5 @@
 const BRANDING_CACHE_KEY = 'ebd.branding.logo';
+const BOOTSTRAP_CACHE_KEY = 'ebd.bootstrap.cache';
 const NAME_NORMALIZATION_CACHE_KEY = 'ebd.names.normalized';
 const APP_ROUTES = {
     courses: '/cursos',
@@ -421,22 +422,36 @@ async function bootstrap() {
     applyCachedBranding();
 
     if (!state.token) {
-        refreshBranding();
         showLogin();
         return;
     }
 
     calendarMonth.value = currentMonthValue();
+    const cached = readBootstrapCache(calendarMonth.value);
+
+    if (cached) {
+        loginView.classList.add('hidden');
+        appView.classList.add('hidden');
+        applyInitialData(cached);
+        showPage(pageFromLocation(), { replace: true });
+        appView.classList.remove('hidden');
+    }
+
     const response = await loadInitialData();
 
     if (response.error) {
         localStorage.removeItem('ebd.token');
-        refreshBranding();
         showLogin();
         return;
     }
 
-    enterApp(response);
+    if (cached) {
+        applyInitialData(response);
+        showPage(pageFromLocation(), { replace: true });
+        queueExistingNameNormalization();
+    } else {
+        enterApp(response);
+    }
 }
 
 async function enterApp(initialData = null) {
@@ -455,7 +470,6 @@ async function enterApp(initialData = null) {
     applyInitialData(response);
     showPage(pageFromLocation(), { replace: true });
     appView.classList.remove('hidden');
-    refreshBranding();
     queueExistingNameNormalization();
 }
 
@@ -492,6 +506,57 @@ function applyInitialData(response) {
     } else if (data.settings?.app_logo_data !== undefined) {
         applyBranding(data.settings.app_logo_data || '');
     }
+
+    writeBootstrapCache(response);
+}
+
+function readBootstrapCache(month) {
+    try {
+        const cached = JSON.parse(localStorage.getItem(BOOTSTRAP_CACHE_KEY) || 'null');
+
+        if (cached?.month !== month || !cached?.response?.user || !cached?.response?.data) {
+            return null;
+        }
+
+        return cached.response;
+    } catch {
+        return null;
+    }
+}
+
+function writeBootstrapCache(response) {
+    const user = response.user || state.user;
+
+    if (!user || !calendarMonth.value) {
+        return;
+    }
+
+    const data = response.data || {};
+    const cacheable = {
+        user,
+        data: {
+            courses: data.courses || state.courses,
+            classes: data.classes || state.classes,
+            people: [],
+            people_loaded: false,
+            class_people: [],
+            class_people_loaded: false,
+            lesson_markers: data.lesson_markers || [],
+            pedagogico_students: data.pedagogico_students || [],
+            pedagogico_students_loaded: Boolean(data.pedagogico_students_loaded),
+            settings: {},
+        },
+    };
+
+    try {
+        localStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify({
+            month: calendarMonth.value,
+            response: cacheable,
+            cached_at: Date.now(),
+        }));
+    } catch {
+        localStorage.removeItem(BOOTSTRAP_CACHE_KEY);
+    }
 }
 
 function applyRoleVisibility() {
@@ -513,24 +578,8 @@ function showLogin() {
     loginView.classList.remove('hidden');
 }
 
-async function loadBranding() {
-    const response = await api('/api/branding', { public: true });
-
-    if (!response.error) {
-        applyBranding(response.data.app_logo_data || '');
-    }
-}
-
 function applyCachedBranding() {
     applyBranding(localStorage.getItem(BRANDING_CACHE_KEY) || '');
-}
-
-async function refreshBranding() {
-    const response = await api('/api/branding', { public: true });
-
-    if (!response.error) {
-        applyBranding(response.data.app_logo_data || '');
-    }
 }
 
 async function loadCourses() {
