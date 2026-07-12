@@ -55,20 +55,24 @@ function handleApi(string $path): void
         $user = Auth::requireUser();
         $month = trim((string) ($_GET['month'] ?? date('Y-m')));
         $settings = new SettingsRepository();
+        $shouldLoadPedagogico = in_array($user['role'], ['pedagogico', 'professor', 'embaixador', 'diretor'], true);
 
         Response::json([
             'user' => $user,
             'data' => [
                 'courses' => (new CourseRepository())->all(),
                 'classes' => (new ClassRepository())->all(),
-                'people' => (new PersonRepository())->all(),
-                'class_people' => (new ClassPeopleRepository())->groupedIds(),
+                'people' => [],
+                'people_loaded' => false,
+                'class_people' => [],
+                'class_people_loaded' => false,
                 'lesson_markers' => in_array($user['role'], ['admin', 'secretaria'], true)
                     ? (new LessonRepository())->markersForMonth($month)
                     : [],
-                'pedagogico_students' => in_array($user['role'], pedagogicoRoles(), true)
+                'pedagogico_students' => $shouldLoadPedagogico
                     ? (new StudentReportRepository())->students($user)
                     : [],
+                'pedagogico_students_loaded' => $shouldLoadPedagogico,
                 'settings' => $user['role'] === 'admin'
                     ? $settings->publicSettings()
                     : $settings->branding(),
@@ -160,6 +164,11 @@ function handleApi(string $path): void
     if ($path === '/api/classes' && $method === 'GET') {
         Auth::requireUser();
         Response::json(['data' => (new ClassRepository())->all()]);
+    }
+
+    if ($path === '/api/class-people' && $method === 'GET') {
+        Auth::requireUser();
+        Response::json(['data' => (new ClassPeopleRepository())->groupedIds()]);
     }
 
     if ($path === '/api/classes' && $method === 'POST') {

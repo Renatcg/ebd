@@ -1106,7 +1106,7 @@ h2 {
 }
 
 .calendar-cell {
-    min-height: 148px;
+    min-height: 92px;
     background: rgba(255, 254, 250, 0.72);
 }
 
@@ -1132,6 +1132,10 @@ h2 {
 .calendar-class-button {
     border-radius: 7px;
     background: #fff;
+    min-height: 20px;
+    min-width: 32px;
+    padding: 0 4px;
+    font-size: 9px;
 }
 
 .calendar-class-button.saved {

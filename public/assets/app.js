@@ -1,4 +1,5 @@
 const BRANDING_CACHE_KEY = 'ebd.branding.logo';
+const NAME_NORMALIZATION_CACHE_KEY = 'ebd.names.normalized';
 const APP_ROUTES = {
     courses: '/cursos',
     classes: '/cursos/classes',
@@ -22,14 +23,17 @@ const state = {
     courses: [],
     classes: [],
     people: [],
+    peopleLoaded: false,
     selectedCourse: null,
     lessonWorkArea: null,
     lessonMarkers: new Set(),
     reports: [],
     storedOpinions: [],
     classPeople: new Map(),
+    classPeopleLoaded: false,
     classPeopleSelection: null,
     pedagogicoStudents: [],
+    pedagogicoStudentsLoaded: false,
     selectedStudent: null,
     selectedStudentClasses: [],
     mediaRecorder: null,
@@ -436,7 +440,7 @@ async function bootstrap() {
 
 async function enterApp(initialData = null) {
     loginView.classList.add('hidden');
-    appView.classList.remove('hidden');
+    appView.classList.add('hidden');
 
     calendarMonth.value = calendarMonth.value || currentMonthValue();
 
@@ -449,6 +453,8 @@ async function enterApp(initialData = null) {
 
     applyInitialData(response);
     showPage(pageFromLocation(), { replace: true });
+    appView.classList.remove('hidden');
+    scheduleAdminPreload();
     queueExistingNameNormalization();
 }
 
@@ -466,9 +472,12 @@ function applyInitialData(response) {
     state.courses = data.courses || [];
     state.classes = data.classes || [];
     state.people = data.people || [];
+    state.peopleLoaded = Boolean(data.people_loaded);
     state.classPeople = classPeopleMapFromPayload(data.class_people || {});
+    state.classPeopleLoaded = Boolean(data.class_people_loaded);
     state.lessonMarkers = new Set((data.lesson_markers || []).map((item) => markerKey(item.lesson_date, item.class_id)));
     state.pedagogicoStudents = data.pedagogico_students || [];
+    state.pedagogicoStudentsLoaded = Boolean(data.pedagogico_students_loaded);
 
     renderCourses();
     renderClasses();
@@ -608,7 +617,8 @@ function renderClasses() {
     });
 }
 
-async function loadPeople() {
+async function loadPeople(options = {}) {
+    const shouldRender = options.render !== false;
     const response = await api('/api/people');
 
     if (response.error) {
@@ -617,7 +627,19 @@ async function loadPeople() {
     }
 
     state.people = response.data;
-    renderPeople();
+    state.peopleLoaded = true;
+
+    if (shouldRender) {
+        renderPeople();
+    }
+}
+
+async function ensurePeopleLoaded(options = {}) {
+    if (state.peopleLoaded) {
+        return;
+    }
+
+    await loadPeople(options);
 }
 
 function renderPeople() {
@@ -826,6 +848,11 @@ function openPersonModal(person = null) {
 }
 
 async function openClassPeopleModal(item, role) {
+    await Promise.all([
+        ensurePeopleLoaded({ render: false }),
+        ensureClassPeopleLoaded(),
+    ]);
+
     if (state.people.length === 0) {
         alert('Cadastre pessoas antes de associar alunos e professores.');
         return;
@@ -879,6 +906,26 @@ async function refreshClassPeopleSelection(classId) {
         state.classPeopleSelection.courseStaffIds = staffIdsForCourse(state.classPeopleSelection.courseId);
         renderActiveClassPeopleChoices();
     }
+}
+
+async function loadClassPeople() {
+    const response = await api('/api/class-people');
+
+    if (response.error) {
+        alert(response.error);
+        return;
+    }
+
+    state.classPeople = classPeopleMapFromPayload(response.data || {});
+    state.classPeopleLoaded = true;
+}
+
+async function ensureClassPeopleLoaded() {
+    if (state.classPeopleLoaded) {
+        return;
+    }
+
+    await loadClassPeople();
 }
 
 function classPeopleMapFromPayload(payload) {
@@ -1303,6 +1350,7 @@ async function loadPedagogicoStudents() {
     }
 
     state.pedagogicoStudents = response.data;
+    state.pedagogicoStudentsLoaded = true;
     renderPedagogicoStudents();
 }
 
@@ -1698,16 +1746,44 @@ function queueExistingNameNormalization() {
         return;
     }
 
+    if (localStorage.getItem(NAME_NORMALIZATION_CACHE_KEY) === '1') {
+        return;
+    }
+
     window.setTimeout(async () => {
         const response = await api('/api/people/normalize-names', { method: 'POST' });
 
-        if (!response.error && Number(response.updated) > 0) {
-            await Promise.all([
-                loadPeople(),
-                loadPedagogicoStudents(),
-            ]);
+        if (response.error) {
+            return;
         }
-    }, 800);
+
+        localStorage.setItem(NAME_NORMALIZATION_CACHE_KEY, '1');
+
+        if (Number(response.updated) > 0) {
+            const reloads = [];
+
+            if (state.peopleLoaded) {
+                reloads.push(loadPeople());
+            }
+
+            if (state.pedagogicoStudentsLoaded) {
+                reloads.push(loadPedagogicoStudents());
+            }
+
+            await Promise.all(reloads);
+        }
+    }, 5000);
+}
+
+function scheduleAdminPreload() {
+    if (state.user?.role !== 'admin') {
+        return;
+    }
+
+    window.setTimeout(() => {
+        ensureClassPeopleLoaded();
+        ensurePeopleLoaded({ render: false });
+    }, 650);
 }
 
 function renderLogoPreview(logoData) {
@@ -1835,6 +1911,20 @@ function showPage(page, options = {}) {
     if (APP_ROUTES[targetPage]) {
         const method = options.replace ? 'replaceState' : 'pushState';
         history[method]({}, '', APP_ROUTES[targetPage]);
+    }
+
+    if (targetPage === 'people') {
+        if (!state.peopleLoaded) {
+            emptyPeople.textContent = 'Carregando pessoas...';
+            emptyPeople.classList.remove('hidden');
+            loadPeople();
+        } else {
+            renderPeople();
+        }
+    }
+
+    if (targetPage === 'pedagogico' && !state.pedagogicoStudentsLoaded) {
+        loadPedagogicoStudents();
     }
 }
 
