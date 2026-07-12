@@ -11,15 +11,37 @@ final class Config
             ?: getenv('NEON_EBD_POSTGRES_URL')
             ?: getenv('NEON_EBD_POSTGRES_PRISMA_URL')
             ?: getenv('NEON_EBD_POSTGRES_URL_NON_POOLING')
+            ?: self::postgresUrlFromParts('NEON_EBD_')
             ?: getenv('DATABASE_URL')
             ?: getenv('POSTGRES_URL_NON_POOLING')
             ?: getenv('POSTGRES_URL')
             ?: getenv('POSTGRES_PRISMA_URL')
+            ?: self::postgresUrlFromParts('')
             ?: '';
 
         $url = trim((string) $url);
 
         return $url === '' ? null : $url;
+    }
+
+    private static function postgresUrlFromParts(string $prefix): string
+    {
+        $host = trim((string) getenv($prefix . 'POSTGRES_HOST'));
+        $database = trim((string) getenv($prefix . 'POSTGRES_DATABASE'));
+        $user = trim((string) getenv($prefix . 'POSTGRES_USER'));
+        $password = (string) getenv($prefix . 'POSTGRES_PASSWORD');
+
+        if ($host === '' || $database === '' || $user === '') {
+            return '';
+        }
+
+        return sprintf(
+            'postgresql://%s:%s@%s/%s?sslmode=require',
+            rawurlencode($user),
+            rawurlencode($password),
+            $host,
+            rawurlencode($database)
+        );
     }
 
     public static function databasePath(): string
