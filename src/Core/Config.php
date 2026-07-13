@@ -6,22 +6,35 @@ final class Config
 {
     public static function databaseUrl(): ?string
     {
-        $url = getenv('NEON_EBD_URL')
+        $provider = strtolower(trim((string) getenv('EBD_DATABASE_PROVIDER')));
+        $url = $provider === 'neon'
+            ? (self::neonDatabaseUrl() ?: self::defaultPostgresUrl())
+            : (self::defaultPostgresUrl() ?: self::neonDatabaseUrl());
+
+        $url = trim((string) $url);
+
+        return $url === '' ? null : $url;
+    }
+
+    private static function neonDatabaseUrl(): string
+    {
+        return getenv('NEON_EBD_URL')
             ?: getenv('NEON_EBD_DATABASE_URL')
             ?: getenv('NEON_EBD_POSTGRES_URL')
             ?: getenv('NEON_EBD_POSTGRES_PRISMA_URL')
             ?: getenv('NEON_EBD_POSTGRES_URL_NON_POOLING')
             ?: self::postgresUrlFromParts('NEON_EBD_')
-            ?: getenv('DATABASE_URL')
+            ?: '';
+    }
+
+    private static function defaultPostgresUrl(): string
+    {
+        return getenv('DATABASE_URL')
             ?: getenv('POSTGRES_URL_NON_POOLING')
             ?: getenv('POSTGRES_URL')
             ?: getenv('POSTGRES_PRISMA_URL')
             ?: self::postgresUrlFromParts('')
             ?: '';
-
-        $url = trim((string) $url);
-
-        return $url === '' ? null : $url;
     }
 
     private static function postgresUrlFromParts(string $prefix): string
